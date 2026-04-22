@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Coach – Strength Trainer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div class="header-top">
+          <div>
+            <h1>Coach</h1>
+            <p>Guided workouts with smart defaults.</p>
+          </div>
+          <nav class="nav-links">
+            <a href="home.html">Dashboard</a>
+            <a href="index.html">Log Workout</a>
+            <a href="profile.html">Profile</a>
+            <a href="chatbot.html">AI Assistant</a>
+            <a href="favorites.html">Favorites</a>
+            <a href="coach.html">Coach</a>
+          </nav>
+        </div>
+      </header>
+
+      <!-- Screen 1: Select Workout -->
+      <section id="select-workout-screen" class="coach-screen">
+        <div class="log-card">
+          <h2>Choose Your Workout</h2>
+          
+          <div id="favorite-workouts" class="workouts-grid">
+            <p class="empty-state">Loading your workouts...</p>
+          </div>
+
+          <div class="divider">OR</div>
+
+          <div class="log-card">
+            <h3>Create New Workout</h3>
+            <form id="new-workout-form">
+              <label>
+                Workout Name
+                <input
+                  type="text"
+                  id="new-workout-name"
+                  placeholder="Upper Body Push"
+                  required
+                />
+              </label>
+              <button type="submit">Create & Start</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- Screen 2: Start Workout - Choose Exercise -->
+      <section id="start-workout-screen" class="coach-screen hidden">
+        <div class="log-card">
+          <div class="log-header">
+            <h2 id="workout-title">Workout</h2>
+            <button type="button" id="back-to-select">Back</button>
+          </div>
+          
+          <div class="coach-progress">
+            <p id="progress-text">Exercise 1 of 5</p>
+            <div class="progress-bar">
+              <div id="progress-fill" class="progress-fill"></div>
+            </div>
+          </div>
+
+          <div id="exercises-list" class="exercises-coach-list">
+            <p class="empty-state">Loading exercises...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Screen 3: Log Exercise -->
+      <section id="log-exercise-screen" class="coach-screen hidden">
+        <div class="log-card">
+          <div class="log-header">
+            <h2 id="exercise-name-display">Exercise</h2>
+            <button type="button" id="close-log">Close</button>
+          </div>
+
+          <form id="exercise-log-form">
+            <div class="row">
+              <label>
+                Sets
+                <input type="number" id="log-sets" min="1" required />
+              </label>
+              <label>
+                Reps
+                <input type="number" id="log-reps" min="1" required />
+              </label>
+              <label>
+                Weight (lbs)
+                <input type="number" id="log-weight" min="0" required />
+              </label>
+            </div>
+            <label>
+              Notes
+              <textarea id="log-notes" rows="3"></textarea>
+            </label>
+            <div class="button-group">
+              <button type="submit" class="btn-primary">Log Exercise</button>
+              <button type="button" id="skip-exercise" class="btn-secondary">Skip</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- Screen 4: Workout Complete -->
+      <section id="workout-complete-screen" class="coach-screen hidden">
+        <div class="log-card">
+          <h2>Workout Status</h2>
+          
+          <div id="workout-summary" class="workout-summary">
+            <p class="empty-state">Loading summary...</p>
+          </div>
+
+          <div id="missed-exercises" class="missed-section hidden">
+            <h3>Exercises You Missed</h3>
+            <div id="missed-list" class="exercises-coach-list">
+              <p class="empty-state">No missed exercises</p>
+            </div>
+            <button type="button" id="go-back-button" class="btn-secondary">Go Back to Missed</button>
+          </div>
+
+          <div class="button-group">
+            <button type="button" id="end-workout-button" class="btn-primary">End Workout</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+    <script src="coach.js"></script>
+  </body>
+</html>

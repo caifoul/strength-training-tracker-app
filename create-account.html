@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Create Email Account – Strength Tracker</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="signup-card">
+        <h1>Create Email Account</h1>
+        <p>Use your email to create an account. Username is optional.</p>
+
+        <div class="button-row">
+          <button type="button" id="google-create" class="google-button">Create with Google</button>
+        </div>
+
+        <form id="create-account-form" class="signup-row">
+          <label>
+            Email
+            <input type="email" id="account-email" placeholder="you@example.com" required />
+          </label>
+          <label>
+            Username (optional)
+            <input type="text" id="account-username" placeholder="WorkoutBuddy" />
+          </label>
+          <label>
+            Password
+            <input type="password" id="account-password" placeholder="••••••••" required />
+          </label>
+          <label>
+            Confirm Password
+            <input type="password" id="account-confirm-password" placeholder="••••••••" required />
+          </label>
+          <button type="submit" class="primary-button">Create Account</button>
+        </form>
+
+        <div id="account-summary" class="empty-state hidden"></div>
+        <a href="signup.html" class="account-link back-link">Back to Profile Setup</a>
+      </section>
+    </main>
+
+    <script src="create-account.js"></script>
+  </body>
+</html>

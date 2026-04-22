@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign In – Strength Tracker</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="signup-card">
+        <h1>Sign In</h1>
+        <p>Enter your email and password to sign in.</p>
+
+        <form id="signin-form" class="signup-row">
+          <label>
+            Email
+            <input type="email" id="signin-email" placeholder="you@example.com" required />
+          </label>
+          <label>
+            Password
+            <input type="password" id="signin-password" placeholder="••••••••" required />
+          </label>
+          <button type="submit" class="primary-button">Sign In</button>
+        </form>
+
+        <a href="signup.html" class="account-link back-link">Back to Welcome</a>
+      </section>
+    </main>
+
+    <script src="signin.js"></script>
+  </body>
+</html>

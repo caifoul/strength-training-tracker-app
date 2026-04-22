@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Strength Tracker</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div class="header-top">
+          <div>
+            <h1>Strength Tracker</h1>
+            <p>Log workouts, track sets, reps, and weights.</p>
+          </div>
+          <nav class="nav-links">
+            <a href="home.html">Dashboard</a>
+            <a href="index.html">Log Workout</a>
+            <a href="profile.html">Profile</a>
+            <a href="chatbot.html">AI Assistant</a>
+            <a href="favorites.html">Favorites</a>
+            <a href="coach.html">Coach</a>
+          </nav>
+        </div>
+      </header>
+
+      <section class="workout-form-card">
+        <h2>Build Workout</h2>
+        <form id="exercise-form">
+          <label>
+            Workout Name
+            <input
+              type="text"
+              id="workout-name"
+              placeholder="Upper Body Push"
+              autocomplete="off"
+              required
+            />
+          </label>
+          <label class="autocomplete-label">
+            Exercise
+            <div class="autocomplete">
+              <input
+                type="text"
+                id="exercise-name"
+                placeholder="Bench Press"
+                autocomplete="off"
+                required
+              />
+              <ul id="exercise-suggestions" class="suggestion-list" role="listbox"></ul>
+            </div>
+          </label>
+          <div class="row">
+            <label>
+              Sets
+              <input type="number" id="exercise-sets" min="1" value="3" required />
+            </label>
+            <label>
+              Reps
+              <input type="number" id="exercise-reps" min="1" value="8" required />
+            </label>
+            <label>
+              Weight
+              <input type="number" id="exercise-weight" min="0" value="100" required />
+            </label>
+          </div>
+          <label>
+            Notes
+            <textarea id="exercise-notes" rows="3"></textarea>
+          </label>
+          <label class="favorite-checkbox">
+            <input type="checkbox" id="workout-favorite" />
+            Favorite this workout session
+          </label>
+          <button type="submit">Add Exercise</button>
+        </form>
+      </section>
+
+      <section class="current-workout-card">
+        <div class="log-header">
+          <h2>Current Workout</h2>
+          <div class="session-actions">
+            <button type="button" id="save-workout-session">Save Workout Session</button>
+            <button type="button" id="clear-current-workout">Clear Current Workout</button>
+          </div>
+        </div>
+        <div id="current-workout-list" class="workout-list">
+          <p class="empty-state">Add exercises to build a workout session.</p>
+        </div>
+      </section>
+
+      <section class="log-card">
+        <div class="log-header">
+          <h2>Workout Log</h2>
+          <button id="clear-log">Clear Log</button>
+        </div>
+        <div id="workout-list" class="workout-list">
+          <p class="empty-state">No exercises logged yet.</p>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
