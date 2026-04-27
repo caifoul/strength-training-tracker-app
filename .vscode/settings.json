@@ -4,5 +4,9 @@
             "approve": true,
             "matchCommandLine": true
         }
+    },
+    "claudeCode.allowDangerouslySkipPermissions": true,
+    "files.watcherExclude": {
+        "**/target": true
     }
 }
