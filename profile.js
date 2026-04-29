@@ -1,3 +1,7 @@
+import { auth, db } from './firebase-config.js';
+import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
 const accountInfo = document.getElementById('account-info');
 const profileInfo = document.getElementById('profile-info');
 const hypertrophySection = document.getElementById('hypertrophy-section');
@@ -11,15 +15,10 @@ const editProfileBtn = document.getElementById('edit-profile-btn');
 const editHypertrophyBtn = document.getElementById('edit-hypertrophy-btn');
 const closeModalBtn = document.getElementById('close-modal');
 const cancelEditBtn = document.getElementById('cancel-edit');
+const signOutBtn = document.getElementById('sign-out-btn');
 
 let currentEditMode = null;
-
-function formatFieldName(key) {
-  return key
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/^./, str => str.toUpperCase())
-    .trim();
-}
+let currentUser = null;
 
 function formatValue(key, value) {
   if (!value) return 'Not set';
@@ -43,17 +42,16 @@ function renderProfile() {
     accountInfo.innerHTML = `
       <ul>
         <li><strong>Provider:</strong> Google</li>
-        <li><strong>Created:</strong> ${new Date(account.createdAt).toLocaleDateString()}</li>
-      </ul>
-    `;
+        <li><strong>Email:</strong> ${account.email || 'Not set'}</li>
+        <li><strong>Created:</strong> ${account.createdAt ? new Date(account.createdAt).toLocaleDateString() : 'Not set'}</li>
+      </ul>`;
   } else {
     accountInfo.innerHTML = `
       <ul>
         <li><strong>Email:</strong> ${account.email || 'Not set'}</li>
         <li><strong>Username:</strong> ${account.username || 'Not set'}</li>
         <li><strong>Created:</strong> ${account.createdAt ? new Date(account.createdAt).toLocaleDateString() : 'Not set'}</li>
-      </ul>
-    `;
+      </ul>`;
   }
 
   const baseFields = [
@@ -64,28 +62,18 @@ function renderProfile() {
   ];
 
   let profileHtml = '<ul>';
-  baseFields.forEach(field => {
-    profileHtml += `<li><strong>${field.label}:</strong> ${profile[field.key] || 'Not set'}</li>`;
+  baseFields.forEach(({ key, label }) => {
+    profileHtml += `<li><strong>${label}:</strong> ${profile[key] || 'Not set'}</li>`;
   });
-
-  if (profile.otherGoals && profile.otherGoals.length > 0) {
-    profileHtml += `<li><strong>Other Goals:</strong> ${profile.otherGoals.join(', ')}</li>`;
-  } else {
-    profileHtml += `<li><strong>Other Goals:</strong> None</li>`;
-  }
-
+  profileHtml += `<li><strong>Other Goals:</strong> ${profile.otherGoals?.length ? profile.otherGoals.join(', ') : 'None'}</li>`;
   if (profile.createdAt) {
     profileHtml += `<li><strong>Profile Created:</strong> ${new Date(profile.createdAt).toLocaleDateString()}</li>`;
   }
-
   profileHtml += '</ul>';
   profileInfo.innerHTML = profileHtml;
 
-  // Display hypertrophy-specific information
   if (profile.mainGoal === 'hypertrophy' && profile.hypertrophy) {
     hypertrophySection.style.display = 'block';
-    
-    let hypertrophyHtml = '<ul>';
     const hypertrophyFields = [
       { key: 'height', label: 'Height' },
       { key: 'weight', label: 'Weight' },
@@ -94,12 +82,10 @@ function renderProfile() {
       { key: 'preferredRepRange', label: 'Preferred Rep Range' },
       { key: 'growthRate', label: 'Recent Growth Rate' },
     ];
-
-    hypertrophyFields.forEach(field => {
-      const value = profile.hypertrophy[field.key];
-      hypertrophyHtml += `<li><strong>${field.label}:</strong> ${formatValue(field.key, value)}</li>`;
+    let hypertrophyHtml = '<ul>';
+    hypertrophyFields.forEach(({ key, label }) => {
+      hypertrophyHtml += `<li><strong>${label}:</strong> ${formatValue(key, profile.hypertrophy[key])}</li>`;
     });
-
     hypertrophyHtml += '</ul>';
     hypertrophyInfo.innerHTML = hypertrophyHtml;
   }
@@ -108,15 +94,12 @@ function renderProfile() {
 function openEditModal(mode) {
   currentEditMode = mode;
   const profile = JSON.parse(localStorage.getItem('strengthTrackerProfile') || '{}');
-
   editFormFields.innerHTML = '';
 
   if (mode === 'profile') {
     editModalTitle.textContent = 'Edit Training Profile';
-    
     editFormFields.innerHTML = `
-      <label>
-        Age Range
+      <label>Age Range
         <select id="edit-age-range">
           <option value="">Select age range</option>
           <option value="under-18">Under 18</option>
@@ -127,8 +110,7 @@ function openEditModal(mode) {
           <option value="55-plus">55+</option>
         </select>
       </label>
-      <label>
-        Gender
+      <label>Gender
         <select id="edit-gender">
           <option value="">Select gender</option>
           <option value="male">Male</option>
@@ -137,8 +119,7 @@ function openEditModal(mode) {
           <option value="prefer-not-to-say">Prefer not to say</option>
         </select>
       </label>
-      <label>
-        Main Goal
+      <label>Main Goal
         <select id="edit-main-goal">
           <option value="">Select main goal</option>
           <option value="strength">Strength</option>
@@ -149,8 +130,7 @@ function openEditModal(mode) {
           <option value="performance">Performance / Sport</option>
         </select>
       </label>
-      <label>
-        Training Split
+      <label>Training Split
         <select id="edit-training-split">
           <option value="">Select training split</option>
           <option value="full-body">Full body</option>
@@ -160,31 +140,18 @@ function openEditModal(mode) {
           <option value="hybrid">Hybrid split</option>
           <option value="custom">Custom</option>
         </select>
-      </label>
-    `;
-
+      </label>`;
     document.getElementById('edit-age-range').value = profile.ageRange || '';
     document.getElementById('edit-gender').value = profile.gender || '';
     document.getElementById('edit-main-goal').value = profile.mainGoal || '';
     document.getElementById('edit-training-split').value = profile.trainingSplit || '';
   } else if (mode === 'hypertrophy' && profile.hypertrophy) {
     editModalTitle.textContent = 'Edit Hypertrophy Goals';
-    
     editFormFields.innerHTML = `
-      <label>
-        Height (inches)
-        <input type="number" id="edit-height" min="36" max="108" step="0.1" />
-      </label>
-      <label>
-        Weight (lbs)
-        <input type="number" id="edit-weight" min="50" max="500" step="0.1" />
-      </label>
-      <label>
-        Daily Calorie Intake
-        <input type="number" id="edit-daily-calories" min="800" max="10000" step="100" />
-      </label>
-      <label>
-        Lifting Experience
+      <label>Height (inches)<input type="number" id="edit-height" min="36" max="108" step="0.1" /></label>
+      <label>Weight (lbs)<input type="number" id="edit-weight" min="50" max="500" step="0.1" /></label>
+      <label>Daily Calorie Intake<input type="number" id="edit-daily-calories" min="800" max="10000" step="100" /></label>
+      <label>Lifting Experience
         <select id="edit-lifting-experience">
           <option value="">Select experience level</option>
           <option value="beginner">Beginner (0-1 year)</option>
@@ -193,12 +160,8 @@ function openEditModal(mode) {
           <option value="elite">Elite (5+ years)</option>
         </select>
       </label>
-      <label>
-        Preferred Rep Range
-        <input type="text" id="edit-preferred-reps" placeholder="e.g., 8-12 or 6-8" />
-      </label>
-      <label>
-        Recent Growth Rate
+      <label>Preferred Rep Range<input type="text" id="edit-preferred-reps" placeholder="e.g., 8-12 or 6-8" /></label>
+      <label>Recent Growth Rate
         <select id="edit-growth-rate">
           <option value="">Select growth rate</option>
           <option value="excellent">Excellent - gaining steady muscle</option>
@@ -208,9 +171,7 @@ function openEditModal(mode) {
           <option value="plateau">Plateau - no visible change</option>
           <option value="regressing">Regressing - losing muscle</option>
         </select>
-      </label>
-    `;
-
+      </label>`;
     document.getElementById('edit-height').value = profile.hypertrophy.height || '';
     document.getElementById('edit-weight').value = profile.hypertrophy.weight || '';
     document.getElementById('edit-daily-calories').value = profile.hypertrophy.dailyCalories || '';
@@ -222,7 +183,7 @@ function openEditModal(mode) {
   editModal.classList.remove('hidden');
 }
 
-function saveChanges() {
+async function saveChanges() {
   const profile = JSON.parse(localStorage.getItem('strengthTrackerProfile') || '{}');
 
   if (currentEditMode === 'profile') {
@@ -231,9 +192,7 @@ function saveChanges() {
     profile.mainGoal = document.getElementById('edit-main-goal').value;
     profile.trainingSplit = document.getElementById('edit-training-split').value;
   } else if (currentEditMode === 'hypertrophy') {
-    if (!profile.hypertrophy) {
-      profile.hypertrophy = {};
-    }
+    if (!profile.hypertrophy) profile.hypertrophy = {};
     profile.hypertrophy.height = document.getElementById('edit-height').value;
     profile.hypertrophy.weight = document.getElementById('edit-weight').value;
     profile.hypertrophy.dailyCalories = document.getElementById('edit-daily-calories').value;
@@ -242,28 +201,43 @@ function saveChanges() {
     profile.hypertrophy.growthRate = document.getElementById('edit-growth-rate').value;
   }
 
+  if (currentUser) {
+    await setDoc(doc(db, 'users', currentUser.uid), { profile }, { merge: true });
+  }
+
   localStorage.setItem('strengthTrackerProfile', JSON.stringify(profile));
   closeModal();
   renderProfile();
-  alert('Profile updated successfully!');
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  renderProfile();
+onAuthStateChanged(auth, async (user) => {
+  if (!user) return;
+  currentUser = user;
 
+  const userDoc = await getDoc(doc(db, 'users', user.uid));
+  if (userDoc.exists()) {
+    const data = userDoc.data();
+    localStorage.setItem('strengthTrackerAccount', JSON.stringify({
+      email: data.email,
+      username: data.username,
+      provider: data.provider,
+      createdAt: data.createdAt,
+    }));
+    if (data.profile) {
+      localStorage.setItem('strengthTrackerProfile', JSON.stringify(data.profile));
+    }
+  }
+
+  renderProfile();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
   editAccountBtn.addEventListener('click', () => {
-    // Account info is read-only for now
     alert('Account information cannot be edited currently.');
   });
 
-  editProfileBtn.addEventListener('click', () => {
-    openEditModal('profile');
-  });
-
-  editHypertrophyBtn.addEventListener('click', () => {
-    openEditModal('hypertrophy');
-  });
-
+  editProfileBtn.addEventListener('click', () => openEditModal('profile'));
+  editHypertrophyBtn.addEventListener('click', () => openEditModal('hypertrophy'));
   closeModalBtn.addEventListener('click', closeModal);
   cancelEditBtn.addEventListener('click', closeModal);
 
@@ -273,8 +247,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   editModal.addEventListener('click', (e) => {
-    if (e.target === editModal) {
-      closeModal();
-    }
+    if (e.target === editModal) closeModal();
+  });
+
+  signOutBtn.addEventListener('click', async () => {
+    await signOut(auth);
+    localStorage.removeItem('strengthTrackerAccount');
+    localStorage.removeItem('strengthTrackerProfile');
+    localStorage.removeItem('strengthTrackerAuth');
+    window.location.href = 'signup.html';
   });
 });
