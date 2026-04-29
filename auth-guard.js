@@ -3,7 +3,7 @@ import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/f
 
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    document.body.style.visibility = '';
+    document.body.style.visibility = 'visible';
   } else {
     window.location.replace('signup.html');
   }
