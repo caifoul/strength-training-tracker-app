@@ -2,15 +2,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-// TODO: Replace ALL values below with your Firebase project config.
-// Get it from: Firebase Console → Project Settings → Your apps → Web app → SDK setup
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyC5ELdL6H38xH6ieKPUN_-FPifGeaski1M",
+  authDomain: "strength-training-tracke-90ccd.firebaseapp.com",
+  projectId: "strength-training-tracke-90ccd",
+  storageBucket: "strength-training-tracke-90ccd.firebasestorage.app",
+  messagingSenderId: "107239153289",
+  appId: "1:107239153289:web:f9d0bf90823811fd7c7058"
 };
 
 const app = initializeApp(firebaseConfig);
