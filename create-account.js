@@ -1,3 +1,7 @@
+if (localStorage.getItem('strengthTrackerAuth')) {
+  window.location.replace('home.html');
+}
+
 const createAccountForm = document.getElementById('create-account-form');
 const googleCreate = document.getElementById('google-create');
 const accountSummary = document.getElementById('account-summary');

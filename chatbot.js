@@ -375,7 +375,7 @@ function getResponse(message) {
     if (currentBuildingWorkout.length > 0) {
       currentBuildingWorkout = [];
       renderCurrentBuildingWorkout();
-      return 'Cleared your current workout. Let\\'s start fresh!';
+      return 'Cleared your current workout. Let\'s start fresh!';
     }
     return 'No exercises to clear.';
   }

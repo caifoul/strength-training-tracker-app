@@ -1,3 +1,7 @@
+if (localStorage.getItem('strengthTrackerAuth')) {
+  window.location.replace('home.html');
+}
+
 const signinForm = document.getElementById('signin-form');
 
 signinForm.addEventListener('submit', event => {

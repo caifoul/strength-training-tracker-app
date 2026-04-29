@@ -1,3 +1,7 @@
+if (localStorage.getItem('strengthTrackerAuth') && localStorage.getItem('strengthTrackerProfile')) {
+  window.location.replace('home.html');
+}
+
 const signupSteps = document.querySelectorAll('#signup-steps .step');
 const stepBack = document.getElementById('step-back');
 const stepNext = document.getElementById('step-next');
