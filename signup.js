@@ -156,7 +156,7 @@ googleSignin.addEventListener('click', async () => {
     // onAuthStateChanged handles navigation
   } catch (error) {
     if (error.code !== 'auth/popup-closed-by-user') {
-      alert('Google sign-in failed. Please try again or use email.');
+      alert('Google sign-in error: ' + error.code + '\n' + error.message);
     }
   }
 });
