@@ -73,6 +73,26 @@
           <div id="exercises-list" class="exercises-coach-list">
             <p class="empty-state">Loading exercises...</p>
           </div>
+
+          <button type="button" id="add-exercise-btn" class="btn-secondary add-exercise-toggle">+ Add Exercise</button>
+
+          <div id="add-exercise-panel" class="add-exercise-panel hidden">
+            <h3>Add Exercise</h3>
+            <label>
+              Exercise Name
+              <input type="text" id="add-ex-name" placeholder="e.g. Bench Press" autocomplete="off" />
+            </label>
+            <div class="row">
+              <label>Sets <input type="number" id="add-ex-sets" min="1" value="3" /></label>
+              <label>Reps <input type="number" id="add-ex-reps" min="1" value="8" /></label>
+              <label>Weight (lbs) <input type="number" id="add-ex-weight" min="0" value="100" /></label>
+            </div>
+            <div class="button-group">
+              <button type="button" id="add-session-only-btn" class="btn-secondary">Session Only</button>
+              <button type="button" id="add-and-save-btn" class="btn-primary">Add &amp; Save to Workout</button>
+            </div>
+            <button type="button" id="cancel-add-exercise-btn" class="btn-secondary cancel-add-exercise">Cancel</button>
+          </div>
         </div>
       </section>
 
@@ -99,6 +119,7 @@
                 <input type="number" id="log-weight" min="0" required />
               </label>
             </div>
+            <p class="rep-hint">Only count reps completed through your full range of motion.</p>
             <label>
               Notes
               <textarea id="log-notes" rows="3"></textarea>
@@ -137,5 +158,6 @@
 
     <script src="app.js"></script>
     <script src="coach.js"></script>
+    <script src="music-widget.js"></script>
   </body>
 </html>

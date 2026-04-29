@@ -98,6 +98,10 @@ function validateCurrentStep() {
 }
 
 function gatherProfile() {
+  const selectedReps = document.getElementById('preferred-reps').value;
+  const customReps = document.getElementById('custom-rep-range').value.trim();
+  const preferredRepRange = selectedReps === 'custom' ? customReps : selectedReps;
+
   const profile = {
     ageRange: document.getElementById('age-range').value,
     gender: document.querySelector('input[name="gender"]:checked')?.value || 'Not specified',
@@ -106,17 +110,16 @@ function gatherProfile() {
     otherGoals: Array.from(document.querySelectorAll('input[name="other-goals"]:checked')).map(
       input => input.parentElement.textContent.trim()
     ),
+    preferredRepRange,
   };
 
   if (profile.mainGoal === 'hypertrophy') {
-    const selectedReps = document.getElementById('preferred-reps').value;
-    const customReps = document.getElementById('custom-rep-range').value.trim();
     profile.hypertrophy = {
       height: document.getElementById('height')?.value,
       weight: document.getElementById('weight')?.value,
       dailyCalories: document.getElementById('daily-calories')?.value,
       liftingExperience: document.getElementById('lifting-experience')?.value,
-      preferredRepRange: selectedReps === 'custom' ? customReps : selectedReps,
+      preferredRepRange,
       growthRate: document.querySelector('input[name="growth-rate"]:checked')?.value || 'Not specified',
     };
   }

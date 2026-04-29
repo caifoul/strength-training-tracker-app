@@ -13,6 +13,7 @@ const editModalTitle = document.getElementById('edit-modal-title');
 const editAccountBtn = document.getElementById('edit-account-btn');
 const editProfileBtn = document.getElementById('edit-profile-btn');
 const editHypertrophyBtn = document.getElementById('edit-hypertrophy-btn');
+const editWarmupBtn = document.getElementById('edit-warmup-btn');
 const closeModalBtn = document.getElementById('close-modal');
 const cancelEditBtn = document.getElementById('cancel-edit');
 const signOutBtn = document.getElementById('sign-out-btn');
@@ -61,16 +62,32 @@ function renderProfile() {
     { key: 'trainingSplit', label: 'Training Split' },
   ];
 
+  // Rep range lives at top level; fall back to legacy hypertrophy sub-object
+  const repRange = profile.preferredRepRange || profile.hypertrophy?.preferredRepRange || null;
+
   let profileHtml = '<ul>';
   baseFields.forEach(({ key, label }) => {
     profileHtml += `<li><strong>${label}:</strong> ${profile[key] || 'Not set'}</li>`;
   });
+  profileHtml += `<li><strong>Preferred Rep Range:</strong> ${repRange || 'Not set'}</li>`;
   profileHtml += `<li><strong>Other Goals:</strong> ${profile.otherGoals?.length ? profile.otherGoals.join(', ') : 'None'}</li>`;
   if (profile.createdAt) {
     profileHtml += `<li><strong>Profile Created:</strong> ${new Date(profile.createdAt).toLocaleDateString()}</li>`;
   }
   profileHtml += '</ul>';
   profileInfo.innerHTML = profileHtml;
+
+  const warmupInfo = document.getElementById('warmup-info');
+  if (profile.preferredWarmup && profile.preferredWarmup.name) {
+    const steps = profile.preferredWarmup.steps || [];
+    warmupInfo.innerHTML = `
+      <strong>${profile.preferredWarmup.name}</strong>
+      <ol style="margin:0.5rem 0 0;padding-left:1.25rem;">
+        ${steps.map(s => `<li style="margin-bottom:0.25rem;">${s}</li>`).join('')}
+      </ol>`;
+  } else {
+    warmupInfo.innerHTML = '<p class="empty-state">No preferred warmup set. Add one to have it available before your workouts.</p>';
+  }
 
   if (profile.mainGoal === 'hypertrophy' && profile.hypertrophy) {
     hypertrophySection.style.display = 'block';
@@ -79,7 +96,6 @@ function renderProfile() {
       { key: 'weight', label: 'Weight' },
       { key: 'dailyCalories', label: 'Daily Calorie Intake' },
       { key: 'liftingExperience', label: 'Lifting Experience' },
-      { key: 'preferredRepRange', label: 'Preferred Rep Range' },
       { key: 'growthRate', label: 'Recent Growth Rate' },
     ];
     let hypertrophyHtml = '<ul>';
@@ -140,7 +156,38 @@ function openEditModal(mode) {
           <option value="hybrid">Hybrid split</option>
           <option value="custom">Custom</option>
         </select>
+      </label>
+      <label>Preferred Rep Range
+        <select id="edit-rep-range-select">
+          <option value="">Select rep range</option>
+          <option value="1-5">1–5 reps (Strength)</option>
+          <option value="6-8">6–8 reps (Strength / Hypertrophy)</option>
+          <option value="8-12">8–12 reps (Hypertrophy)</option>
+          <option value="12-15">12–15 reps (Hypertrophy / Endurance)</option>
+          <option value="15-20">15–20 reps (Endurance)</option>
+          <option value="20-plus">20+ reps (High endurance)</option>
+          <option value="custom">Custom...</option>
+        </select>
+      </label>
+      <label id="edit-custom-rep-label" style="display:none;">Custom range (e.g. 7–11)
+        <input type="text" id="edit-custom-rep-input" placeholder="e.g., 8-12" />
       </label>`;
+
+    const knownRanges = ['1-5','6-8','8-12','12-15','15-20','20-plus'];
+    const currentRep = profile.preferredRepRange || profile.hypertrophy?.preferredRepRange || '';
+    const repSelect = document.getElementById('edit-rep-range-select');
+    if (knownRanges.includes(currentRep)) {
+      repSelect.value = currentRep;
+    } else if (currentRep) {
+      repSelect.value = 'custom';
+      document.getElementById('edit-custom-rep-label').style.display = 'block';
+      document.getElementById('edit-custom-rep-input').value = currentRep;
+    }
+    repSelect.addEventListener('change', (e) => {
+      document.getElementById('edit-custom-rep-label').style.display =
+        e.target.value === 'custom' ? 'block' : 'none';
+    });
+
     document.getElementById('edit-age-range').value = profile.ageRange || '';
     document.getElementById('edit-gender').value = profile.gender || '';
     document.getElementById('edit-main-goal').value = profile.mainGoal || '';
@@ -180,6 +227,21 @@ function openEditModal(mode) {
     document.getElementById('edit-growth-rate').value = profile.hypertrophy.growthRate || '';
   }
 
+  if (mode === 'warmup') {
+    editModalTitle.textContent = 'Edit Preferred Warmup';
+    const pw = profile.preferredWarmup || {};
+    const stepsText = Array.isArray(pw.steps) ? pw.steps.join('\n') : '';
+    editFormFields.innerHTML = `
+      <label>Warmup Name
+        <input type="text" id="edit-warmup-name" placeholder="My Warmup" maxlength="60" />
+      </label>
+      <label>Steps <span style="font-weight:400;font-size:0.85rem;">(one per line)</span>
+        <textarea id="edit-warmup-steps" rows="8" placeholder="Hip flexor stretch 30s each&#10;Arm circles × 15&#10;Jumping jacks × 30"></textarea>
+      </label>`;
+    document.getElementById('edit-warmup-name').value = pw.name || '';
+    document.getElementById('edit-warmup-steps').value = stepsText;
+  }
+
   editModal.classList.remove('hidden');
 }
 
@@ -191,6 +253,23 @@ async function saveChanges() {
     profile.gender = document.getElementById('edit-gender').value;
     profile.mainGoal = document.getElementById('edit-main-goal').value;
     profile.trainingSplit = document.getElementById('edit-training-split').value;
+
+    const repSel = document.getElementById('edit-rep-range-select');
+    const repCustom = document.getElementById('edit-custom-rep-input');
+    if (repSel) {
+      profile.preferredRepRange = repSel.value === 'custom'
+        ? (repCustom?.value.trim() || '')
+        : repSel.value;
+      // Keep hypertrophy sub-object in sync if it exists
+      if (profile.hypertrophy) {
+        profile.hypertrophy.preferredRepRange = profile.preferredRepRange;
+      }
+    }
+  } else if (currentEditMode === 'warmup') {
+    const name = document.getElementById('edit-warmup-name').value.trim();
+    const stepsRaw = document.getElementById('edit-warmup-steps').value;
+    const steps = stepsRaw.split('\n').map(s => s.trim()).filter(Boolean);
+    profile.preferredWarmup = name ? { name, steps } : null;
   } else if (currentEditMode === 'hypertrophy') {
     if (!profile.hypertrophy) profile.hypertrophy = {};
     profile.hypertrophy.height = document.getElementById('edit-height').value;
@@ -238,6 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   editProfileBtn.addEventListener('click', () => openEditModal('profile'));
   editHypertrophyBtn.addEventListener('click', () => openEditModal('hypertrophy'));
+  editWarmupBtn.addEventListener('click', () => openEditModal('warmup'));
   closeModalBtn.addEventListener('click', closeModal);
   cancelEditBtn.addEventListener('click', closeModal);
 

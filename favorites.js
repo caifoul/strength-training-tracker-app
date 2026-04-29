@@ -1,8 +1,27 @@
+import { auth, db } from './firebase-config.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { collection, doc, setDoc, getDocs, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
 const storageKey = 'strengthTrackerExercises';
 const favoritesList = document.getElementById('favorites-list');
 const clearFavoritesButton = document.getElementById('clear-favorites');
 
 let workouts = [];
+let currentUser = null;
+
+// --- Firestore helpers ---
+
+async function loadWorkoutsFromFirestore(uid) {
+  const snapshot = await getDocs(collection(db, 'users', uid, 'workouts'));
+  return snapshot.docs.map(d => d.data());
+}
+
+async function updateWorkoutInFirestore(session) {
+  if (!currentUser) return;
+  await setDoc(doc(db, 'users', currentUser.uid, 'workouts', session.id), session);
+}
+
+// --- Local helpers ---
 
 function normalizeWorkouts(raw) {
   if (!Array.isArray(raw)) return [];
@@ -27,13 +46,11 @@ function normalizeWorkouts(raw) {
   }));
 }
 
-function loadWorkouts() {
+function setStorage(data) {
   try {
-    const stored = JSON.parse(localStorage.getItem(storageKey) || '[]');
-    workouts = normalizeWorkouts(stored);
+    localStorage.setItem(storageKey, JSON.stringify(data));
   } catch (e) {
-    console.warn('Could not load workouts from localStorage');
-    workouts = [];
+    console.warn('Could not save favorites');
   }
 }
 
@@ -77,28 +94,58 @@ function renderFavorites() {
     .join('');
 }
 
-function setStorage(data) {
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(data));
-  } catch (e) {
-    console.warn('Could not save favorites');
-  }
+async function unfavoriteWorkout(sessionId) {
+  workouts = workouts.map(workout =>
+    workout.id === sessionId ? { ...workout, favorite: false } : workout
+  );
+  setStorage(workouts);
+  renderFavorites();
+  const updated = workouts.find(w => w.id === sessionId);
+  if (updated) await updateWorkoutInFirestore(updated);
 }
 
-function clearFavorites() {
+async function clearFavorites() {
+  const previouslyFavorited = workouts.filter(w => w.favorite);
   workouts = workouts.map(workout => ({ ...workout, favorite: false }));
   setStorage(workouts);
   renderFavorites();
+  for (const workout of previouslyFavorited) {
+    await updateWorkoutInFirestore({ ...workout, favorite: false });
+  }
 }
+
+document.addEventListener('click', async event => {
+  if (event.target.matches('.remove-favorite')) {
+    const sessionId = event.target.dataset.sessionId;
+    await unfavoriteWorkout(sessionId);
+  }
+});
 
 clearFavoritesButton.addEventListener('click', clearFavorites);
 
 window.addEventListener('storage', event => {
   if (event.key === storageKey) {
-    loadWorkouts();
+    try {
+      workouts = normalizeWorkouts(JSON.parse(localStorage.getItem(storageKey) || '[]'));
+    } catch (e) {
+      workouts = [];
+    }
     renderFavorites();
   }
 });
 
-loadWorkouts();
-renderFavorites();
+onAuthStateChanged(auth, async (user) => {
+  currentUser = user;
+  if (user) {
+    const firestoreWorkouts = await loadWorkoutsFromFirestore(user.uid);
+    workouts = normalizeWorkouts(firestoreWorkouts);
+    setStorage(workouts);
+  } else {
+    try {
+      workouts = normalizeWorkouts(JSON.parse(localStorage.getItem(storageKey) || '[]'));
+    } catch (e) {
+      workouts = [];
+    }
+  }
+  renderFavorites();
+});

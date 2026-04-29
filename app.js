@@ -1,3 +1,7 @@
+import { auth, db } from './firebase-config.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { collection, doc, setDoc, getDocs, deleteDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
 const exerciseForm = document.getElementById('exercise-form');
 const workoutNameInput = document.getElementById('workout-name');
 const workoutList = document.getElementById('workout-list');
@@ -110,8 +114,149 @@ const popularExercises = [
   'Cable Pull-Through'
 ];
 
+const WARMUP_PRESETS = [
+  {
+    id: 'general',
+    name: 'General Athletic',
+    duration: '5 min',
+    steps: ['Jumping jacks × 30', 'Arm circles × 15 each', 'Leg swings × 10 each', 'Hip circles × 10 each', 'High knees × 20']
+  },
+  {
+    id: 'upper',
+    name: 'Upper Body',
+    duration: '4 min',
+    steps: ['Band pull-aparts × 15', 'Shoulder circles × 10 each', 'Chest stretch 30s each', 'Tricep stretch 20s each', 'Wrist circles × 10']
+  },
+  {
+    id: 'lower',
+    name: 'Lower Body',
+    duration: '5 min',
+    steps: ['Hip flexor stretch 30s each', 'Quad stretch 30s each', 'Hamstring stretch 30s', 'Glute bridge × 15', 'Calf raises × 20']
+  },
+  {
+    id: 'core',
+    name: 'Core Activation',
+    duration: '4 min',
+    steps: ['Cat-cow × 10', 'Dead bugs × 8 each', 'Bird dogs × 8 each', 'Plank 30s', 'Side plank 20s each']
+  },
+  {
+    id: 'dynamic',
+    name: 'Full Body Dynamic',
+    duration: '6 min',
+    steps: ["World's greatest stretch × 5 each", 'Inchworms × 8', 'Spiderman lunges × 6 each', 'T-spine rotations × 10', 'Jump squats × 10']
+  }
+];
+
 let workouts = [];
 let currentWorkoutExercises = [];
+let currentUser = null;
+let warmupShownThisSession = false;
+let pendingExerciseData = null;
+
+// --- Warmup modal ---
+
+function getPreferredWarmup() {
+  try {
+    const profile = JSON.parse(localStorage.getItem('strengthTrackerProfile') || '{}');
+    return profile.preferredWarmup || null;
+  } catch { return null; }
+}
+
+function showWarmupModal(exerciseData) {
+  pendingExerciseData = exerciseData;
+  warmupShownThisSession = true;
+
+  const modal = document.getElementById('warmup-modal');
+  const selectView = document.getElementById('warmup-select-view');
+  const activeView = document.getElementById('warmup-active-view');
+  selectView.classList.remove('hidden');
+  activeView.classList.add('hidden');
+
+  const preferred = getPreferredWarmup();
+  const preferredSection = document.getElementById('warmup-preferred-section');
+  if (preferred && preferred.name) {
+    preferredSection.classList.remove('hidden');
+    const steps = Array.isArray(preferred.steps) ? preferred.steps : [];
+    document.getElementById('warmup-preferred-card').innerHTML = `
+      <div class="warmup-card-header">
+        <strong>${preferred.name}</strong>
+        <span class="warmup-duration">${steps.length} steps</span>
+      </div>
+      <ol class="warmup-steps-preview">${steps.slice(0, 3).map(s => `<li>${s}</li>`).join('')}${steps.length > 3 ? `<li class="warmup-more">+${steps.length - 3} more…</li>` : ''}</ol>
+    `;
+    document.getElementById('warmup-preferred-card').dataset.warmupId = 'preferred';
+  } else {
+    preferredSection.classList.add('hidden');
+  }
+
+  document.getElementById('warmup-presets-grid').innerHTML = WARMUP_PRESETS.map(p => `
+    <div class="warmup-card" data-warmup-id="${p.id}">
+      <div class="warmup-card-header">
+        <strong>${p.name}</strong>
+        <span class="warmup-duration">${p.duration}</span>
+      </div>
+      <ol class="warmup-steps-preview">${p.steps.slice(0, 3).map(s => `<li>${s}</li>`).join('')}${p.steps.length > 3 ? `<li class="warmup-more">+${p.steps.length - 3} more…</li>` : ''}</ol>
+    </div>
+  `).join('');
+
+  modal.classList.remove('hidden');
+}
+
+function showActiveWarmup(id) {
+  let warmup;
+  if (id === 'preferred') {
+    const pw = getPreferredWarmup();
+    warmup = pw ? { name: pw.name, steps: pw.steps || [] } : null;
+  } else {
+    warmup = WARMUP_PRESETS.find(p => p.id === id);
+  }
+  if (!warmup) return;
+
+  document.getElementById('warmup-select-view').classList.add('hidden');
+  document.getElementById('warmup-active-view').classList.remove('hidden');
+  document.getElementById('warmup-active-name').textContent = warmup.name;
+  document.getElementById('warmup-steps-list').innerHTML = warmup.steps.map(s => `<li>${s}</li>`).join('');
+}
+
+function closeWarmupAndAdd() {
+  document.getElementById('warmup-modal').classList.add('hidden');
+  if (pendingExerciseData) {
+    commitExercise(pendingExerciseData);
+    pendingExerciseData = null;
+  }
+}
+
+// --- Firestore helpers ---
+
+async function loadWorkoutsFromFirestore(uid) {
+  const snapshot = await getDocs(collection(db, 'users', uid, 'workouts'));
+  return snapshot.docs.map(d => d.data());
+}
+
+async function saveWorkoutToFirestore(session) {
+  if (!currentUser) return;
+  await setDoc(doc(db, 'users', currentUser.uid, 'workouts', session.id), session);
+}
+
+async function updateWorkoutInFirestore(session) {
+  if (!currentUser) return;
+  await setDoc(doc(db, 'users', currentUser.uid, 'workouts', session.id), session);
+}
+
+async function deleteWorkoutFromFirestore(sessionId) {
+  if (!currentUser) return;
+  await deleteDoc(doc(db, 'users', currentUser.uid, 'workouts', sessionId));
+}
+
+async function clearAllWorkoutsFromFirestore() {
+  if (!currentUser) return;
+  const snapshot = await getDocs(collection(db, 'users', currentUser.uid, 'workouts'));
+  const batch = writeBatch(db);
+  snapshot.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+}
+
+// --- Local helpers ---
 
 function normalizeWorkouts(raw) {
   if (!Array.isArray(raw)) return [];
@@ -207,12 +352,9 @@ function getPredictedValues(exerciseName) {
   if (pastExercises.length === 0) {
     return { sets: 3, reps: 8, weight: 100 };
   }
-  
-  // Calculate averages of all past exercises
   const avgSets = pastExercises.reduce((sum, ex) => sum + ex.sets, 0) / pastExercises.length;
   const avgReps = pastExercises.reduce((sum, ex) => sum + ex.reps, 0) / pastExercises.length;
   const avgWeight = pastExercises.reduce((sum, ex) => sum + ex.weight, 0) / pastExercises.length;
-  
   return {
     sets: Math.round(avgSets),
     reps: Math.round(avgReps),
@@ -226,6 +368,7 @@ function renderCurrentWorkout() {
     return;
   }
 
+  const last = currentWorkoutExercises.length - 1;
   currentWorkoutList.innerHTML = currentWorkoutExercises
     .map((exercise, index) => `
       <article class="exercise-item" data-index="${index}">
@@ -236,7 +379,13 @@ function renderCurrentWorkout() {
           <span>Weight: ${exercise.weight} lbs</span>
           ${exercise.notes ? `<p class="exercise-notes">Notes: ${exercise.notes}</p>` : ''}
         </div>
-        <button type="button" class="exercise-delete" data-index="${index}">Remove</button>
+        <div class="exercise-actions">
+          <div class="exercise-reorder">
+            <button type="button" class="btn-icon exercise-move" data-index="${index}" data-dir="-1" ${index === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
+            <button type="button" class="btn-icon exercise-move" data-index="${index}" data-dir="1" ${index === last ? 'disabled' : ''} aria-label="Move down">↓</button>
+          </div>
+          <button type="button" class="exercise-delete" data-index="${index}">Remove</button>
+        </div>
       </article>
     `)
     .join('');
@@ -299,16 +448,20 @@ function addExerciseToCurrentWorkout() {
     return;
   }
 
-  currentWorkoutExercises.push({
+  const data = {
     id: `exercise-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    name,
-    sets,
-    reps,
-    weight,
-    notes,
-    favorite: false
-  });
+    name, sets, reps, weight, notes, favorite: false
+  };
 
+  if (currentWorkoutExercises.length === 0 && !warmupShownThisSession) {
+    showWarmupModal(data);
+  } else {
+    commitExercise(data);
+  }
+}
+
+function commitExercise(data) {
+  currentWorkoutExercises.push(data);
   renderCurrentWorkout();
   exerciseNameInput.value = '';
   document.getElementById('exercise-notes').value = '';
@@ -318,7 +471,7 @@ function addExerciseToCurrentWorkout() {
   document.getElementById('exercise-weight').value = 100;
 }
 
-function saveCurrentWorkout() {
+async function saveCurrentWorkout() {
   if (currentWorkoutExercises.length === 0) {
     alert('Add at least one exercise before saving the workout session.');
     return;
@@ -340,6 +493,7 @@ function saveCurrentWorkout() {
 
   workouts.push(session);
   saveWorkouts();
+  await saveWorkoutToFirestore(session);
   renderWorkoutLog();
 
   currentWorkoutExercises = [];
@@ -349,10 +503,11 @@ function saveCurrentWorkout() {
 
 function clearCurrentWorkout() {
   currentWorkoutExercises = [];
+  warmupShownThisSession = false;
   renderCurrentWorkout();
 }
 
-function toggleFavorite(sessionId) {
+async function toggleFavorite(sessionId) {
   workouts = workouts.map(session =>
     session.id === sessionId
       ? { ...session, favorite: !session.favorite }
@@ -360,9 +515,11 @@ function toggleFavorite(sessionId) {
   );
   saveWorkouts();
   renderWorkoutLog();
+  const updated = workouts.find(s => s.id === sessionId);
+  if (updated) await updateWorkoutInFirestore(updated);
 }
 
-function toggleExerciseFavorite(sessionId, exerciseId) {
+async function toggleExerciseFavorite(sessionId, exerciseId) {
   workouts = workouts.map(session => {
     if (session.id !== sessionId) return session;
     const updatedExercises = session.exercises.map(ex =>
@@ -374,9 +531,11 @@ function toggleExerciseFavorite(sessionId, exerciseId) {
   });
   saveWorkouts();
   renderWorkoutLog();
+  const updated = workouts.find(s => s.id === sessionId);
+  if (updated) await updateWorkoutInFirestore(updated);
 }
 
-function deleteExercise(sessionId, exerciseId) {
+async function deleteExercise(sessionId, exerciseId) {
   workouts = workouts
     .map(session => {
       if (session.id !== sessionId) return session;
@@ -387,6 +546,25 @@ function deleteExercise(sessionId, exerciseId) {
 
   saveWorkouts();
   renderWorkoutLog();
+
+  const stillExists = workouts.find(s => s.id === sessionId);
+  if (stillExists) {
+    await updateWorkoutInFirestore(stillExists);
+  } else {
+    await deleteWorkoutFromFirestore(sessionId);
+  }
+}
+
+function updateRepHint() {
+  const hint = document.querySelector('.rep-hint');
+  if (!hint) return;
+  try {
+    const profile = JSON.parse(localStorage.getItem('strengthTrackerProfile') || '{}');
+    const range = profile.preferredRepRange || profile.hypertrophy?.preferredRepRange;
+    hint.textContent = range
+      ? `Keep reps in your preferred range: ${range}`
+      : 'Only count reps completed through your full range of motion.';
+  } catch (_) {}
 }
 
 window.addEventListener('storage', event => {
@@ -431,26 +609,37 @@ suggestionsList.addEventListener('click', event => {
   document.getElementById('exercise-weight').value = predicted.weight;
 });
 
-document.addEventListener('click', event => {
+document.addEventListener('click', async event => {
   if (!event.target.closest('.autocomplete')) {
     setSuggestionVisibility(false);
   }
 
   if (event.target.matches('.favorite-toggle')) {
     const sessionId = event.target.dataset.sessionId;
-    toggleFavorite(sessionId);
+    await toggleFavorite(sessionId);
   }
 
   if (event.target.matches('.exercise-favorite')) {
     const sessionId = event.target.dataset.sessionId;
     const exerciseId = event.target.dataset.exerciseId;
-    toggleExerciseFavorite(sessionId, exerciseId);
+    await toggleExerciseFavorite(sessionId, exerciseId);
   }
 
   if (event.target.matches('.exercise-delete') && event.target.dataset.sessionId) {
     const sessionId = event.target.dataset.sessionId;
     const exerciseId = event.target.dataset.exerciseId;
-    deleteExercise(sessionId, exerciseId);
+    await deleteExercise(sessionId, exerciseId);
+  }
+
+  if (event.target.matches('.exercise-move')) {
+    const index = Number(event.target.dataset.index);
+    const newIndex = index + Number(event.target.dataset.dir);
+    if (newIndex >= 0 && newIndex < currentWorkoutExercises.length) {
+      [currentWorkoutExercises[index], currentWorkoutExercises[newIndex]] =
+        [currentWorkoutExercises[newIndex], currentWorkoutExercises[index]];
+      renderCurrentWorkout();
+    }
+    return;
   }
 
   if (event.target.matches('.exercise-delete') && event.target.dataset.index) {
@@ -462,12 +651,41 @@ document.addEventListener('click', event => {
 
 saveWorkoutButton.addEventListener('click', saveCurrentWorkout);
 clearCurrentWorkoutButton.addEventListener('click', clearCurrentWorkout);
-clearLogButton.addEventListener('click', () => {
+
+document.getElementById('warmup-skip').addEventListener('click', closeWarmupAndAdd);
+document.getElementById('warmup-skip-x').addEventListener('click', closeWarmupAndAdd);
+document.getElementById('warmup-done').addEventListener('click', closeWarmupAndAdd);
+
+document.getElementById('warmup-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('warmup-modal')) closeWarmupAndAdd();
+});
+
+document.getElementById('warmup-presets-grid').addEventListener('click', e => {
+  const card = e.target.closest('.warmup-card[data-warmup-id]');
+  if (card) showActiveWarmup(card.dataset.warmupId);
+});
+
+document.getElementById('warmup-preferred-card').addEventListener('click', () => {
+  showActiveWarmup('preferred');
+});
+
+clearLogButton.addEventListener('click', async () => {
   workouts = [];
   saveWorkouts();
+  await clearAllWorkoutsFromFirestore();
   renderWorkoutLog();
 });
 
-loadWorkouts();
-renderCurrentWorkout();
-renderWorkoutLog();
+onAuthStateChanged(auth, async (user) => {
+  currentUser = user;
+  if (user) {
+    const firestoreWorkouts = await loadWorkoutsFromFirestore(user.uid);
+    workouts = normalizeWorkouts(firestoreWorkouts);
+    saveWorkouts();
+  } else {
+    loadWorkouts();
+  }
+  renderCurrentWorkout();
+  renderWorkoutLog();
+  updateRepHint();
+});

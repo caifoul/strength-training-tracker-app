@@ -26,6 +26,23 @@
         </div>
       </header>
 
+      <section class="log-card" id="app-overview">
+        <div class="overview-steps">
+          <a href="index.html" class="overview-step"><span>💪</span> Log</a>
+          <span class="overview-arrow">→</span>
+          <a href="coach.html" class="overview-step"><span>🤖</span> Coach</a>
+          <span class="overview-arrow">→</span>
+          <a href="favorites.html" class="overview-step"><span>⭐</span> Favorites</a>
+          <span class="overview-arrow">→</span>
+          <a href="profile.html" class="overview-step"><span>👤</span> Profile</a>
+        </div>
+        <div class="overview-stats" id="overview-stats">
+          <span id="stat-sessions">— sessions</span>
+          <span id="stat-exercises">— exercises</span>
+          <span id="stat-last">last workout: —</span>
+        </div>
+      </section>
+
       <section class="log-card">
         <h2>7-Day Lift Progression</h2>
         <div id="progression-list">
@@ -45,6 +62,7 @@
       </section>
     </main>
 
-    <script src="home.js"></script>
+    <script type="module" src="home.js"></script>
+    <script src="music-widget.js"></script>
   </body>
 </html>

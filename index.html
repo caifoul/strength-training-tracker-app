@@ -66,6 +66,7 @@
               <input type="number" id="exercise-weight" min="0" value="100" required />
             </label>
           </div>
+          <p class="rep-hint">Only count reps completed through your full range of motion.</p>
           <label>
             Notes
             <textarea id="exercise-notes" rows="3"></textarea>
@@ -102,6 +103,34 @@
       </section>
     </main>
 
-    <script src="app.js"></script>
+    <!-- Warmup Modal -->
+    <div id="warmup-modal" class="modal hidden">
+      <div class="modal-content warmup-modal-content">
+        <div class="modal-header">
+          <h2>Warmup</h2>
+          <button type="button" id="warmup-skip-x" class="close-btn">&times;</button>
+        </div>
+        <p class="warmup-subtitle">Pick a warmup before your first set, or skip.</p>
+
+        <div id="warmup-select-view">
+          <div id="warmup-preferred-section" class="hidden">
+            <p class="warmup-section-label">Your Preferred Warmup</p>
+            <div id="warmup-preferred-card" class="warmup-card warmup-card-preferred"></div>
+          </div>
+          <p class="warmup-section-label">Quick Options</p>
+          <div class="warmup-grid" id="warmup-presets-grid"></div>
+          <button type="button" id="warmup-skip" class="secondary-button warmup-skip-btn">Skip Warmup</button>
+        </div>
+
+        <div id="warmup-active-view" class="hidden">
+          <p class="warmup-active-name" id="warmup-active-name"></p>
+          <ol class="warmup-steps-list" id="warmup-steps-list"></ol>
+          <button type="button" id="warmup-done">Done — Start Workout</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+    <script src="music-widget.js"></script>
   </body>
 </html>

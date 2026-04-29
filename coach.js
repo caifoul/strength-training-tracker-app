@@ -169,23 +169,30 @@ function logExerciseForIndex(index) {
   const exercise = coachState.currentWorkout.exercises[index];
   if (!exercise) return;
 
-  const defaults = getSmartDefaults(exercise.name, index);
+  const isEditing = coachState.loggedExercises.has(index);
+  const previousEntry = isEditing
+    ? coachState.currentSession.exercises.find(ex => ex.exerciseIndex === index)
+    : null;
+
+  const values = previousEntry
+    ? { sets: previousEntry.sets, reps: previousEntry.reps, weight: previousEntry.weight }
+    : getSmartDefaults(exercise.name, index);
 
   document.getElementById('exercise-name-display').textContent = exercise.name;
-  document.getElementById('log-sets').value = defaults.sets;
-  document.getElementById('log-reps').value = defaults.reps;
-  document.getElementById('log-weight').value = defaults.weight;
-  document.getElementById('log-notes').value = '';
-  
+  document.getElementById('log-sets').value = values.sets;
+  document.getElementById('log-reps').value = values.reps;
+  document.getElementById('log-weight').value = values.weight;
+  document.getElementById('log-notes').value = previousEntry ? (previousEntry.notes || '') : '';
+
   document.getElementById('exercise-log-form').dataset.exerciseIndex = index;
-  
+
   showScreen('log-exercise-screen');
 }
 
 function submitExerciseLog() {
   const form = document.getElementById('exercise-log-form');
   const index = parseInt(form.dataset.exerciseIndex);
-  
+
   const sets = parseInt(document.getElementById('log-sets').value);
   const reps = parseInt(document.getElementById('log-reps').value);
   const weight = parseInt(document.getElementById('log-weight').value);
@@ -198,14 +205,17 @@ function submitExerciseLog() {
   const exercise = coachState.currentWorkout.exercises[index];
   const notes = document.getElementById('log-notes').value.trim();
 
-  coachState.currentSession.exercises.push({
-    name: exercise.name,
-    sets,
-    reps,
-    weight,
-    notes,
-    timestamp: Date.now()
-  });
+  const existingIdx = coachState.currentSession.exercises.findIndex(
+    ex => ex.exerciseIndex === index
+  );
+
+  const entry = { exerciseIndex: index, name: exercise.name, sets, reps, weight, notes, timestamp: Date.now() };
+
+  if (existingIdx !== -1) {
+    coachState.currentSession.exercises[existingIdx] = entry;
+  } else {
+    coachState.currentSession.exercises.push(entry);
+  }
 
   coachState.loggedExercises.add(index);
   coachState.missedExercises.delete(index);
@@ -293,6 +303,53 @@ function renderMissedExercises() {
   container.innerHTML = missedHtml;
 }
 
+function showAddExercisePanel() {
+  const hasTemplate = !!(coachState.currentWorkout && coachState.currentWorkout.id);
+  const saveBtn = document.getElementById('add-and-save-btn');
+  saveBtn.style.display = hasTemplate ? '' : 'none';
+
+  document.getElementById('add-ex-name').value = '';
+  document.getElementById('add-ex-sets').value = '3';
+  document.getElementById('add-ex-reps').value = '8';
+  document.getElementById('add-ex-weight').value = '100';
+
+  document.getElementById('add-exercise-panel').classList.remove('hidden');
+  document.getElementById('add-exercise-btn').classList.add('hidden');
+  document.getElementById('add-ex-name').focus();
+}
+
+function hideAddExercisePanel() {
+  document.getElementById('add-exercise-panel').classList.add('hidden');
+  document.getElementById('add-exercise-btn').classList.remove('hidden');
+}
+
+function addMidSessionExercise(saveToWorkout) {
+  const name = document.getElementById('add-ex-name').value.trim();
+  const sets = parseInt(document.getElementById('add-ex-sets').value);
+  const reps = parseInt(document.getElementById('add-ex-reps').value);
+  const weight = parseInt(document.getElementById('add-ex-weight').value);
+
+  if (!name || !sets || !reps || weight < 0) {
+    alert('Please fill in all fields correctly.');
+    return;
+  }
+
+  const newExercise = { name, sets, reps, weight };
+  coachState.currentWorkout.exercises.push(newExercise);
+
+  if (saveToWorkout && coachState.currentWorkout.id) {
+    loadWorkouts();
+    const idx = workouts.findIndex(w => w.id === coachState.currentWorkout.id);
+    if (idx !== -1) {
+      workouts[idx].exercises.push({ ...newExercise });
+      saveWorkouts();
+    }
+  }
+
+  hideAddExercisePanel();
+  renderExercisesSelection();
+}
+
 function endWorkout() {
   // Save the completed workout
   const session = {
@@ -306,6 +363,7 @@ function endWorkout() {
       sets: ex.sets,
       reps: ex.reps,
       weight: ex.weight,
+      notes: ex.notes || '',
       favorite: false
     }))
   };
@@ -350,8 +408,21 @@ function endWorkout() {
   alert('Workout saved successfully!');
 }
 
+function updateRepHint() {
+  const hint = document.querySelector('.rep-hint');
+  if (!hint) return;
+  try {
+    const profile = JSON.parse(localStorage.getItem('strengthTrackerProfile') || '{}');
+    const range = profile.preferredRepRange || profile.hypertrophy?.preferredRepRange;
+    hint.textContent = range
+      ? `Keep reps in your preferred range: ${range}`
+      : 'Only count reps completed through your full range of motion.';
+  } catch (_) {}
+}
+
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
+  updateRepHint();
   renderFavoriteWorkouts();
 
   // Select workout screen
@@ -389,6 +460,12 @@ document.addEventListener('DOMContentLoaded', () => {
       logExerciseForIndex(index);
     }
   });
+
+  // Add exercise mid-session
+  document.getElementById('add-exercise-btn').addEventListener('click', showAddExercisePanel);
+  document.getElementById('cancel-add-exercise-btn').addEventListener('click', hideAddExercisePanel);
+  document.getElementById('add-session-only-btn').addEventListener('click', () => addMidSessionExercise(false));
+  document.getElementById('add-and-save-btn').addEventListener('click', () => addMidSessionExercise(true));
 
   // Log exercise screen
   document.getElementById('exercise-log-form').addEventListener('submit', (e) => {
