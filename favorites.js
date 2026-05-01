@@ -14,6 +14,7 @@ async function loadWorkoutsFromFirestore(uid) {
   return snapshot.docs.map(d => d.data());
 }
 
+
 async function updateWorkoutInFirestore(session) {
   if (!currentUser) return;
   await setDoc(doc(db, 'users', currentUser.uid, 'workouts', session.id), session);
@@ -155,9 +156,20 @@ window.addEventListener('storage', event => {
 onAuthStateChanged(auth, async user => {
   currentUser = user;
   if (user) {
-    const firestoreWorkouts = await loadWorkoutsFromFirestore(user.uid);
-    workouts = normalizeWorkouts(firestoreWorkouts);
-    setStorage(workouts);
+    try {
+      const firestoreWorkouts = await loadWorkoutsFromFirestore(user.uid);
+      if (firestoreWorkouts.length > 0) {
+        workouts = normalizeWorkouts(firestoreWorkouts);
+        setStorage(workouts);
+      } else {
+        // Firestore empty or not yet synced — use localStorage
+        try { workouts = normalizeWorkouts(JSON.parse(localStorage.getItem(storageKey) || '[]')); }
+        catch (_) { workouts = []; }
+      }
+    } catch (_) {
+      try { workouts = normalizeWorkouts(JSON.parse(localStorage.getItem(storageKey) || '[]')); }
+      catch (__) { workouts = []; }
+    }
   } else {
     try { workouts = normalizeWorkouts(JSON.parse(localStorage.getItem(storageKey) || '[]')); }
     catch (_) { workouts = []; }

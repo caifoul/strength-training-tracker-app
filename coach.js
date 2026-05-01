@@ -420,15 +420,8 @@ async function saveAndEnd() {
   }
 
   const saveMsg = getMotivationalMessage('save');
-  if (saveMsg) alert(saveMsg);
-
-  state.currentWorkout = null;
-  state.exerciseQueue  = [];
-  state.logged         = [];
-  state.skipped        = new Set();
-
-  await loadAllWorkouts();
-  renderHome();
+  alert(saveMsg || 'Workout saved!');
+  location.reload();
 }
 
 // ── Load data ─────────────────────────────────────────────────────

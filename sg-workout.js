@@ -1,6 +1,7 @@
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { collection, doc, setDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getMotivationalMessage } from './motivation.js';
 
 const storageKey = 'strengthTrackerExercises';
 let workouts = [];
@@ -331,7 +332,31 @@ async function endWorkout() {
 
   renderFavoriteWorkouts();
   showScreen('select-workout-screen');
-  alert('Workout saved successfully!');
+  alert('Workout saved!');
+  location.reload();
+}
+
+// ── End early ─────────────────────────────────────────────────────
+function showSgQuitPanel() {
+  const tease = getMotivationalMessage('quit');
+  const teaseEl = document.getElementById('sg-quit-tease');
+  teaseEl.textContent = tease || '';
+  teaseEl.style.display = tease ? '' : 'none';
+  document.getElementById('sg-quit-panel').classList.remove('hidden');
+}
+
+function hideSgQuitPanel() {
+  document.getElementById('sg-quit-panel').classList.add('hidden');
+}
+
+async function endEarly() {
+  hideSgQuitPanel();
+  if (coachState.loggedExercises.size === 0) {
+    coachState = { currentWorkout: null, currentSession: null, currentExerciseIndex: 0, loggedExercises: new Set(), missedExercises: new Set() };
+    showScreen('select-workout-screen');
+    return;
+  }
+  await endWorkout();
 }
 
 // ── Events ────────────────────────────────────────────────────────
@@ -382,6 +407,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('go-back-button').addEventListener('click', showExerciseSelection);
   document.getElementById('end-workout-button').addEventListener('click', endWorkout);
+
+  document.getElementById('sg-end-early-btn').addEventListener('click', showSgQuitPanel);
+  document.getElementById('sg-quit-cancel-btn').addEventListener('click', hideSgQuitPanel);
+  document.getElementById('sg-quit-confirm-btn').addEventListener('click', endEarly);
 });
 
 // ── Auth ──────────────────────────────────────────────────────────

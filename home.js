@@ -1,10 +1,25 @@
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-import { getMotivationalMessage } from './motivation.js';
-
 const progressionList = document.getElementById('progression-list');
 const inspirationalMessage = document.getElementById('inspirational-message');
+
+const QUOTES = [
+  { quote: "The last three or four reps is what makes the muscle grow. This area of pain divides a champion from someone who is not a champion.", author: "Arnold Schwarzenegger" },
+  { quote: "The mind is the limit. As long as the mind can envision the fact that you can do something, you can do it.", author: "Arnold Schwarzenegger" },
+  { quote: "I do it as a therapy. I do it as something that keeps me alive.", author: "Arnold Schwarzenegger" },
+  { quote: "Everybody wants to be a bodybuilder, but nobody wants to lift no heavy-ass weights.", author: "Ronnie Coleman" },
+  { quote: "Ain't nothin' but a peanut.", author: "Ronnie Coleman" },
+  { quote: "When you hit failure, your workout has just begun.", author: "Ronnie Coleman" },
+  { quote: "Pain is temporary. It may last a minute, or an hour, or a day, or a year, but eventually it will subside and something else will take its place. If I quit, however, it lasts forever.", author: "Lance Armstrong" },
+  { quote: "There are no shortcuts. The fact that a shortcut is important to you means that the result is not.", author: "Frank Zane" },
+  { quote: "The iron never lies to you. You can walk outside and listen to all kinds of talk, get told that you're a god or a total bastard. The iron will always kick you the real deal.", author: "Henry Rollins" },
+  { quote: "To be a champion, you must act like a champion.", author: "Lou Ferrigno" },
+  { quote: "There is no reason to be alive if you can't do the deadlift.", author: "Jon Pall Sigmarsson" },
+  { quote: "Don't have $100 shoes and a 10 cent squat.", author: "Louie Simmons" },
+  { quote: "The only way to define your limits is by going beyond them.", author: "Arthur Clarke" },
+  { quote: "If you can imagine it, you can achieve it. If you can dream it, you can become it.", author: "William Arthur Ward" },
+];
 
 function calculateProgression(sessions) {
   const now = Date.now();
@@ -85,13 +100,8 @@ function calculateProgression(sessions) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const msg = getMotivationalMessage('dashboard');
-  const section = inspirationalMessage.closest('section');
-  if (msg === null) {
-    if (section) section.style.display = 'none';
-  } else {
-    inspirationalMessage.textContent = msg;
-  }
+  const { quote, author } = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+  inspirationalMessage.innerHTML = `"${quote}" <br><strong>— ${author}</strong>`;
 });
 
 function updateOverviewStats(sessions) {

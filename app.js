@@ -528,12 +528,10 @@ async function saveCurrentWorkout() {
 
   workouts.push(session);
   saveWorkouts();
-  await saveWorkoutToFirestore(session);
-  renderWorkoutLog();
+  try { await saveWorkoutToFirestore(session); } catch (e) { console.error('Firestore save failed:', e); }
 
-  currentWorkoutExercises = [];
-  renderCurrentWorkout();
-  alert('Workout session saved successfully!');
+  alert('Workout saved!');
+  location.reload();
 }
 
 function clearCurrentWorkout() {
