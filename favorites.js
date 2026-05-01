@@ -1,6 +1,6 @@
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { collection, doc, setDoc, getDocs, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { collection, doc, setDoc, getDocs, deleteDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 const storageKey = 'strengthTrackerExercises';
 const favoritesList = document.getElementById('favorites-list');
@@ -8,8 +8,6 @@ const clearFavoritesButton = document.getElementById('clear-favorites');
 
 let workouts = [];
 let currentUser = null;
-
-// --- Firestore helpers ---
 
 async function loadWorkoutsFromFirestore(uid) {
   const snapshot = await getDocs(collection(db, 'users', uid, 'workouts'));
@@ -21,131 +19,148 @@ async function updateWorkoutInFirestore(session) {
   await setDoc(doc(db, 'users', currentUser.uid, 'workouts', session.id), session);
 }
 
-// --- Local helpers ---
+async function deleteWorkoutFromFirestore(sessionId) {
+  if (!currentUser) return;
+  await deleteDoc(doc(db, 'users', currentUser.uid, 'workouts', sessionId));
+}
 
 function normalizeWorkouts(raw) {
   if (!Array.isArray(raw)) return [];
   if (raw.length === 0) return [];
-  if (raw[0] && Array.isArray(raw[0].exercises)) {
-    return raw;
-  }
+  if (raw[0] && Array.isArray(raw[0].exercises)) return raw;
   return raw.map(item => ({
     id: `session-${item.timestamp || Date.now()}-${Math.random().toString(36).slice(2)}`,
     name: item.name ? `${item.name} Workout` : 'Workout Session',
     timestamp: item.timestamp || Date.now(),
     favorite: !!item.favorite,
-    exercises: [
-      {
-        id: `exercise-${item.timestamp || Date.now()}-${Math.random().toString(36).slice(2)}`,
-        name: item.name || 'Exercise',
-        sets: item.sets || 1,
-        reps: item.reps || 1,
-        weight: item.weight || 0
-      }
-    ]
+    exercises: [{
+      id: `exercise-${item.timestamp || Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name: item.name || 'Exercise',
+      sets: item.sets || 1,
+      reps: item.reps || 1,
+      weight: item.weight || 0,
+    }],
   }));
 }
 
 function setStorage(data) {
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(data));
-  } catch (e) {
-    console.warn('Could not save favorites');
-  }
+  try { localStorage.setItem(storageKey, JSON.stringify(data)); } catch (_) {}
 }
 
 function renderFavorites() {
   if (!favoritesList) return;
 
-  const favoriteWorkouts = workouts.filter(workout => workout.favorite);
-  if (favoriteWorkouts.length === 0) {
-    favoritesList.innerHTML = '<p class="empty-state">No favorite workouts yet.</p>';
+  if (!workouts.length) {
+    favoritesList.innerHTML = '<p class="empty-state">No workouts saved yet. Go to <a href="index.html">Log Workout</a> to create one.</p>';
     return;
   }
 
-  favoritesList.innerHTML = favoriteWorkouts
-    .slice()
-    .reverse()
-    .map(workout => `
-      <article class="session-card">
-        <div class="session-card-header">
-          <div>
-            <h3>${workout.name}</h3>
-            <p class="session-meta">${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'} • ${new Date(workout.timestamp).toLocaleString()}</p>
+  const sorted = workouts.slice().sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+  favoritesList.innerHTML = sorted.map(workout => `
+    <article class="session-card">
+      <div class="session-card-header">
+        <div>
+          <h3>${workout.name}</h3>
+          <p class="session-meta">${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'} • ${new Date(workout.timestamp).toLocaleString()}</p>
+        </div>
+        <div class="fav-card-actions">
+          <button type="button"
+            class="favorite-toggle ${workout.favorite ? 'favorite-active' : ''}"
+            data-action="star"
+            data-session-id="${workout.id}"
+            title="${workout.favorite ? 'Remove from Coach' : 'Star to use in Coach'}">
+            ${workout.favorite ? '★' : '☆'}
+          </button>
+          <button type="button" class="btn-secondary fav-rename-btn" data-action="rename" data-session-id="${workout.id}">Rename</button>
+          <button type="button" class="fav-delete-btn" data-action="delete" data-session-id="${workout.id}">Delete</button>
+        </div>
+      </div>
+      <div class="exercise-list">
+        ${workout.exercises.map(ex => `
+          <div class="exercise-item">
+            <div class="exercise-summary">
+              <strong>${ex.name}</strong>
+              <span>Sets: ${ex.sets}</span>
+              <span>Reps: ${ex.reps}</span>
+              <span>Weight: ${ex.weight} lbs</span>
+            </div>
           </div>
-          <button type="button" class="remove-favorite" data-session-id="${workout.id}">Unfavorite</button>
-        </div>
-        <div class="exercise-list">
-          ${workout.exercises
-            .map(exercise => `
-              <div class="exercise-item">
-                <div class="exercise-summary">
-                  <strong>${exercise.name}</strong>
-                  <span>Sets: ${exercise.sets}</span>
-                  <span>Reps: ${exercise.reps}</span>
-                  <span>Weight: ${exercise.weight} lbs</span>
-                </div>
-              </div>
-            `)
-            .join('')}
-        </div>
-      </article>
-    `)
-    .join('');
+        `).join('')}
+      </div>
+    </article>
+  `).join('');
 }
 
-async function unfavoriteWorkout(sessionId) {
-  workouts = workouts.map(workout =>
-    workout.id === sessionId ? { ...workout, favorite: false } : workout
-  );
+async function toggleStar(sessionId) {
+  workouts = workouts.map(w => w.id === sessionId ? { ...w, favorite: !w.favorite } : w);
   setStorage(workouts);
   renderFavorites();
   const updated = workouts.find(w => w.id === sessionId);
   if (updated) await updateWorkoutInFirestore(updated);
 }
 
-async function clearFavorites() {
-  const previouslyFavorited = workouts.filter(w => w.favorite);
-  workouts = workouts.map(workout => ({ ...workout, favorite: false }));
+async function renameWorkout(sessionId) {
+  const workout = workouts.find(w => w.id === sessionId);
+  if (!workout) return;
+  const newName = prompt('Rename workout:', workout.name);
+  if (!newName || newName.trim() === workout.name) return;
+  workouts = workouts.map(w => w.id === sessionId ? { ...w, name: newName.trim() } : w);
   setStorage(workouts);
   renderFavorites();
-  for (const workout of previouslyFavorited) {
-    await updateWorkoutInFirestore({ ...workout, favorite: false });
+  const updated = workouts.find(w => w.id === sessionId);
+  if (updated) await updateWorkoutInFirestore(updated);
+}
+
+async function deleteWorkout(sessionId) {
+  if (!confirm('Delete this workout? This cannot be undone.')) return;
+  workouts = workouts.filter(w => w.id !== sessionId);
+  setStorage(workouts);
+  renderFavorites();
+  await deleteWorkoutFromFirestore(sessionId);
+}
+
+async function unstarAll() {
+  const hadFavorites = workouts.some(w => w.favorite);
+  if (!hadFavorites) return;
+  workouts = workouts.map(w => ({ ...w, favorite: false }));
+  setStorage(workouts);
+  renderFavorites();
+  if (currentUser) {
+    const batch = writeBatch(db);
+    workouts.forEach(w => batch.set(doc(db, 'users', currentUser.uid, 'workouts', w.id), w));
+    await batch.commit();
   }
 }
 
-document.addEventListener('click', async event => {
-  if (event.target.matches('.remove-favorite')) {
-    const sessionId = event.target.dataset.sessionId;
-    await unfavoriteWorkout(sessionId);
-  }
+favoritesList.addEventListener('click', async e => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const { action, sessionId } = btn.dataset;
+  if (action === 'star')   await toggleStar(sessionId);
+  if (action === 'rename') await renameWorkout(sessionId);
+  if (action === 'delete') await deleteWorkout(sessionId);
 });
 
-clearFavoritesButton.addEventListener('click', clearFavorites);
+clearFavoritesButton.addEventListener('click', unstarAll);
 
 window.addEventListener('storage', event => {
   if (event.key === storageKey) {
-    try {
-      workouts = normalizeWorkouts(JSON.parse(localStorage.getItem(storageKey) || '[]'));
-    } catch (e) {
-      workouts = [];
-    }
+    try { workouts = normalizeWorkouts(JSON.parse(localStorage.getItem(storageKey) || '[]')); }
+    catch (_) { workouts = []; }
     renderFavorites();
   }
 });
 
-onAuthStateChanged(auth, async (user) => {
+onAuthStateChanged(auth, async user => {
   currentUser = user;
   if (user) {
     const firestoreWorkouts = await loadWorkoutsFromFirestore(user.uid);
     workouts = normalizeWorkouts(firestoreWorkouts);
     setStorage(workouts);
   } else {
-    try {
-      workouts = normalizeWorkouts(JSON.parse(localStorage.getItem(storageKey) || '[]'));
-    } catch (e) {
-      workouts = [];
-    }
+    try { workouts = normalizeWorkouts(JSON.parse(localStorage.getItem(storageKey) || '[]')); }
+    catch (_) { workouts = []; }
   }
   renderFavorites();
 });
