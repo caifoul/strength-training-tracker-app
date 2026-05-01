@@ -1,6 +1,7 @@
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { MOTIVATION_STYLES } from './motivation.js';
 
 const accountInfo = document.getElementById('account-info');
 const profileInfo = document.getElementById('profile-info');
@@ -13,6 +14,7 @@ const editModalTitle = document.getElementById('edit-modal-title');
 const editAccountBtn = document.getElementById('edit-account-btn');
 const editProfileBtn = document.getElementById('edit-profile-btn');
 const editHypertrophyBtn = document.getElementById('edit-hypertrophy-btn');
+const editMotivationBtn = document.getElementById('edit-motivation-btn');
 const editWarmupBtn = document.getElementById('edit-warmup-btn');
 const closeModalBtn = document.getElementById('close-modal');
 const cancelEditBtn = document.getElementById('cancel-edit');
@@ -76,6 +78,11 @@ function renderProfile() {
   }
   profileHtml += '</ul>';
   profileInfo.innerHTML = profileHtml;
+
+  const motivationInfo = document.getElementById('motivation-info');
+  const styleKey = profile.motivationStyle || 'moderate';
+  const styleLabel = MOTIVATION_STYLES[styleKey] || 'Moderate Taunting with Positive Energy';
+  motivationInfo.innerHTML = `<p><strong>${styleLabel}</strong></p>`;
 
   const warmupInfo = document.getElementById('warmup-info');
   if (profile.preferredWarmup && profile.preferredWarmup.name) {
@@ -227,6 +234,19 @@ function openEditModal(mode) {
     document.getElementById('edit-growth-rate').value = profile.hypertrophy.growthRate || '';
   }
 
+  if (mode === 'motivation') {
+    editModalTitle.textContent = 'Motivation Style';
+    const current = profile.motivationStyle || 'moderate';
+    const options = Object.entries(MOTIVATION_STYLES)
+      .map(([key, label]) => `<option value="${key}"${key === current ? ' selected' : ''}>${label}</option>`)
+      .join('');
+    editFormFields.innerHTML = `
+      <label>Style
+        <select id="edit-motivation-style">${options}</select>
+      </label>
+      <p class="coach-meta" style="margin-top:0.75rem;">Controls the tone of messages throughout the app — quit teases, save confirmations, and your dashboard quote.</p>`;
+  }
+
   if (mode === 'warmup') {
     editModalTitle.textContent = 'Edit Preferred Warmup';
     const pw = profile.preferredWarmup || {};
@@ -265,6 +285,9 @@ async function saveChanges() {
         profile.hypertrophy.preferredRepRange = profile.preferredRepRange;
       }
     }
+  } else if (currentEditMode === 'motivation') {
+    const sel = document.getElementById('edit-motivation-style');
+    if (sel) profile.motivationStyle = sel.value;
   } else if (currentEditMode === 'warmup') {
     const name = document.getElementById('edit-warmup-name').value.trim();
     const stepsRaw = document.getElementById('edit-warmup-steps').value;
@@ -317,6 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   editProfileBtn.addEventListener('click', () => openEditModal('profile'));
   editHypertrophyBtn.addEventListener('click', () => openEditModal('hypertrophy'));
+  editMotivationBtn.addEventListener('click', () => openEditModal('motivation'));
   editWarmupBtn.addEventListener('click', () => openEditModal('warmup'));
   closeModalBtn.addEventListener('click', closeModal);
   cancelEditBtn.addEventListener('click', closeModal);

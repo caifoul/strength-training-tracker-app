@@ -1,499 +1,498 @@
-// Coach UI Management
-let coachState = {
-  currentWorkout: null, // Template: { name, exercises: [{name, sets, reps, weight}] }
-  currentSession: null, // { workoutName, exercises: [] }
-  currentExerciseIndex: 0,
-  loggedExercises: new Set(), // indices of logged exercises
-  missedExercises: new Set(), // indices of missed exercises
+import { auth, db } from './firebase-config.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { collection, doc, setDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getMotivationalMessage } from './motivation.js';
+
+// ── Exercise alternatives ─────────────────────────────────────────
+const ALTERNATIVES = {
+  'Bench Press':             ['Dumbbell Bench Press', 'Floor Press', 'Cable Fly', 'Push-Up'],
+  'Incline Bench Press':     ['Incline Dumbbell Press', 'Cable Fly', 'Incline Push-Up'],
+  'Decline Bench Press':     ['Dumbbell Bench Press', 'Cable Fly', 'Push-Up'],
+  'Dumbbell Bench Press':    ['Bench Press', 'Floor Press', 'Cable Fly', 'Push-Up'],
+  'Close-Grip Bench Press':  ['Tricep Pushdown', 'Skullcrusher', 'Diamond Push-Up'],
+  'Back Squat':              ['Leg Press', 'Goblet Squat', 'Bulgarian Split Squat', 'Front Squat'],
+  'Front Squat':             ['Back Squat', 'Goblet Squat', 'Leg Press'],
+  'Goblet Squat':            ['Leg Press', 'Back Squat', 'Bulgarian Split Squat'],
+  'Bulgarian Split Squat':   ['Reverse Lunge', 'Walking Lunge', 'Leg Press', 'Step-Up'],
+  'Deadlift':                ['Romanian Deadlift', 'Trap Bar Deadlift', 'Good Morning', 'Stiff-Leg Deadlift'],
+  'Romanian Deadlift':       ['Stiff-Leg Deadlift', 'Good Morning', 'Leg Curl', 'Cable Pull-Through'],
+  'Sumo Deadlift':           ['Deadlift', 'Trap Bar Deadlift', 'Romanian Deadlift'],
+  'Trap Bar Deadlift':       ['Deadlift', 'Romanian Deadlift', 'Leg Press'],
+  'Overhead Press':          ['Seated Dumbbell Press', 'Arnold Press', 'Push Press', 'Dumbbell Lateral Raise'],
+  'Seated Dumbbell Press':   ['Overhead Press', 'Arnold Press', 'Cable Lateral Raise'],
+  'Push Press':              ['Overhead Press', 'Seated Dumbbell Press', 'Arnold Press'],
+  'Arnold Press':            ['Overhead Press', 'Seated Dumbbell Press', 'Push Press'],
+  'Pull-Up':                 ['Lat Pulldown', 'Cable Row', 'Single-Arm Dumbbell Row', 'Chin-Up'],
+  'Chin-Up':                 ['Pull-Up', 'Lat Pulldown', 'Cable Row'],
+  'Lat Pulldown':            ['Pull-Up', 'Chin-Up', 'Cable Row', 'Single-Arm Dumbbell Row'],
+  'Barbell Row':             ['Cable Row', 'Single-Arm Dumbbell Row', 'T-Bar Row', 'Pendlay Row'],
+  'Cable Row':               ['Barbell Row', 'Single-Arm Dumbbell Row', 'T-Bar Row'],
+  'Single-Arm Dumbbell Row': ['Cable Row', 'Barbell Row', 'T-Bar Row'],
+  'T-Bar Row':               ['Barbell Row', 'Cable Row', 'Single-Arm Dumbbell Row'],
+  'Leg Press':               ['Back Squat', 'Bulgarian Split Squat', 'Goblet Squat', 'Leg Extension'],
+  'Leg Extension':           ['Leg Press', 'Bulgarian Split Squat', 'Step-Up'],
+  'Leg Curl':                ['Romanian Deadlift', 'Stiff-Leg Deadlift', 'Good Morning'],
+  'Seated Leg Curl':         ['Leg Curl', 'Romanian Deadlift', 'Stiff-Leg Deadlift'],
+  'Hip Thrust':              ['Glute Bridge', 'Cable Pull-Through', 'Romanian Deadlift'],
+  'Glute Bridge':            ['Hip Thrust', 'Cable Pull-Through', 'Romanian Deadlift'],
+  'Calf Raise':              ['Seated Calf Raise', 'Single-Leg Calf Raise'],
+  'Seated Calf Raise':       ['Calf Raise', 'Single-Leg Calf Raise'],
+  'Tricep Pushdown':         ['Skullcrusher', 'Overhead Tricep Extension', 'Diamond Push-Up', 'Triceps Dip'],
+  'Skullcrusher':            ['Overhead Tricep Extension', 'Tricep Pushdown', 'Close-Grip Bench Press'],
+  'Overhead Tricep Extension':['Skullcrusher', 'Tricep Pushdown', 'Diamond Push-Up'],
+  'Triceps Dip':             ['Tricep Pushdown', 'Diamond Push-Up', 'Close-Grip Bench Press'],
+  'Bicep Curl':              ['Hammer Curl', 'Preacher Curl', 'Cable Curl', 'Concentration Curl'],
+  'Hammer Curl':             ['Bicep Curl', 'Cable Curl', 'Zottman Curl'],
+  'Preacher Curl':           ['Bicep Curl', 'Concentration Curl', 'Cable Curl'],
+  'Concentration Curl':      ['Bicep Curl', 'Preacher Curl', 'Hammer Curl'],
+  'Dumbbell Lateral Raise':  ['Cable Lateral Raise', 'Overhead Press', 'Face Pull'],
+  'Cable Lateral Raise':     ['Dumbbell Lateral Raise', 'Overhead Press', 'Face Pull'],
+  'Face Pull':               ['Reverse Fly', 'Cable Lateral Raise', 'Dumbbell Lateral Raise'],
+  'Reverse Fly':             ['Face Pull', 'Cable Lateral Raise', 'Dumbbell Lateral Raise'],
+  'Chest Fly':               ['Cable Fly', 'Bench Press', 'Dumbbell Bench Press'],
+  'Cable Fly':               ['Chest Fly', 'Bench Press', 'Dumbbell Bench Press'],
+  'Plank':                   ['Side Plank', 'Ab Wheel Rollout', 'Dead Bug'],
+  'Hanging Leg Raise':       ['Hanging Knee Raise', 'Ab Wheel Rollout', 'Russian Twist'],
 };
 
-function showScreen(screenId) {
-  document.querySelectorAll('.coach-screen').forEach(screen => {
-    screen.classList.add('hidden');
-  });
-  document.getElementById(screenId).classList.remove('hidden');
+// ── State ─────────────────────────────────────────────────────────
+const state = {
+  allWorkouts:    [],
+  currentWorkout: null,
+  exerciseQueue:  [],
+  currentIndex:   0,
+  logged:         [],
+  skipped:        new Set(),
+  currentUser:    null,
+};
+
+// ── DOM helpers ───────────────────────────────────────────────────
+const qs = id => document.getElementById(id);
+
+function showScreen(id) {
+  document.querySelectorAll('.coach-screen').forEach(s => s.classList.add('hidden'));
+  qs(id).classList.remove('hidden');
 }
 
-function getFavoriteWorkouts() {
-  // Get all workouts from app.js storage
-  loadWorkouts();
-  return workouts.filter(session => session.favorite);
-}
-
-function getLastExerciseLogForName(exerciseName) {
-  // Find the most recent logged instance of this exercise
-  loadWorkouts();
-  for (let i = workouts.length - 1; i >= 0; i--) {
-    const session = workouts[i];
-    for (const exercise of session.exercises) {
-      if (exercise.name === exerciseName) {
-        return exercise;
-      }
+// ── Data helpers ──────────────────────────────────────────────────
+function getLastLog(exerciseName) {
+  for (let i = state.allWorkouts.length - 1; i >= 0; i--) {
+    for (const ex of (state.allWorkouts[i].exercises || [])) {
+      if (ex.name === exerciseName) return ex;
     }
   }
   return null;
 }
 
-function getSmartDefaults(exerciseName, exerciseIndex) {
-  const lastLog = getLastExerciseLogForName(exerciseName);
-  if (lastLog) {
-    return {
-      sets: lastLog.sets,
-      reps: lastLog.reps + 1,
-      weight: lastLog.weight
-    };
-  }
-  // Fallback defaults
+function getSmartDefault(exerciseName) {
+  const last = getLastLog(exerciseName);
+  if (last) return { sets: last.sets, reps: Math.min(last.reps + 1, 15), weight: last.weight };
   return { sets: 3, reps: 8, weight: 100 };
 }
 
-function renderFavoriteWorkouts() {
-  const container = document.getElementById('favorite-workouts');
-  const favorites = getFavoriteWorkouts();
+// ── Workout suggestion ────────────────────────────────────────────
+function suggestWorkout() {
+  const favorites = state.allWorkouts.filter(w => w.favorite);
+  if (!favorites.length) return null;
 
-  if (favorites.length === 0) {
-    container.innerHTML = '<p class="empty-state">No favorite workouts yet. Create one in Log Workout first!</p>';
+  const lastDoneAt = {};
+  state.allWorkouts.forEach(s => {
+    if (!lastDoneAt[s.name] || s.timestamp > lastDoneAt[s.name])
+      lastDoneAt[s.name] = s.timestamp;
+  });
+
+  return favorites.slice().sort(
+    (a, b) => (lastDoneAt[a.name] || 0) - (lastDoneAt[b.name] || 0)
+  )[0];
+}
+
+function daysSince(ts) {
+  if (!ts) return 'never';
+  const d = Math.floor((Date.now() - ts) / 86400000);
+  return d === 0 ? 'today' : d === 1 ? 'yesterday' : `${d}d ago`;
+}
+
+// ── Render home ───────────────────────────────────────────────────
+function renderHome() {
+  const s = suggestWorkout();
+
+  if (!s) {
+    qs('suggested-workout-name').textContent = 'No favorites yet';
+    qs('suggested-workout-meta').textContent = '';
+    qs('suggested-exercises-preview').textContent = '';
+    qs('start-suggested-btn').style.display = 'none';
+    qs('choose-different-btn').style.display = 'none';
+    qs('coach-no-favorites').classList.remove('hidden');
+    showScreen('screen-home');
     return;
   }
 
-  container.innerHTML = favorites
-    .map(workout => `
-      <div class="workout-card coach-workout-card">
-        <h3>${workout.name}</h3>
-        <p>${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'}</p>
-        <button type="button" class="btn-primary start-favorite-workout" data-session-id="${workout.id}">
-          Start
-        </button>
-      </div>
-    `)
-    .join('');
+  qs('coach-no-favorites').classList.add('hidden');
+  qs('start-suggested-btn').style.display = '';
+  qs('choose-different-btn').style.display = '';
+
+  const lastDoneAt = {};
+  state.allWorkouts.forEach(w => {
+    if (!lastDoneAt[w.name] || w.timestamp > lastDoneAt[w.name])
+      lastDoneAt[w.name] = w.timestamp;
+  });
+
+  const preview = s.exercises.slice(0, 4).map(e => e.name).join(', ');
+  const extra   = s.exercises.length - 4;
+
+  qs('suggested-workout-name').textContent        = s.name;
+  qs('suggested-workout-meta').textContent        = `${s.exercises.length} exercises • last done ${daysSince(lastDoneAt[s.name])}`;
+  qs('suggested-exercises-preview').textContent   = preview + (extra > 0 ? ` +${extra} more` : '');
+  qs('start-suggested-btn').dataset.workoutId     = s.id || '';
+
+  showScreen('screen-home');
 }
 
-function startFavoriteWorkout(sessionId) {
-  loadWorkouts();
-  const template = workouts.find(w => w.id === sessionId);
-  if (!template) return;
+// ── Render choose screen ──────────────────────────────────────────
+function renderChooseScreen() {
+  const favorites = state.allWorkouts.filter(w => w.favorite);
+  const container = qs('choose-workouts-list');
 
-  coachState.currentWorkout = template;
-  coachState.currentSession = {
-    workoutName: template.name,
-    startTime: Date.now(),
-    exercises: []
-  };
-  coachState.currentExerciseIndex = 0;
-  coachState.loggedExercises.clear();
-  coachState.missedExercises.clear();
-
-  showExerciseSelection();
-}
-
-function createNewWorkout(workoutName) {
-  coachState.currentWorkout = {
-    name: workoutName,
-    exercises: []
-  };
-  coachState.currentSession = {
-    workoutName: workoutName,
-    startTime: Date.now(),
-    exercises: []
-  };
-  coachState.currentExerciseIndex = 0;
-  coachState.loggedExercises.clear();
-  coachState.missedExercises.clear();
-
-  // For new workouts, we'll need to add exercises - for now, show a message
-  showScreen('start-workout-screen');
-  document.getElementById('workout-title').textContent = workoutName;
-  document.getElementById('exercises-list').innerHTML = 
-    '<p class="empty-state">New workout created! Add exercises first in the Log Workout section.</p>';
-}
-
-function showExerciseSelection() {
-  showScreen('start-workout-screen');
-  document.getElementById('workout-title').textContent = coachState.currentWorkout.name;
-  renderExercisesSelection();
-}
-
-function renderExercisesSelection() {
-  const container = document.getElementById('exercises-list');
-  const exercises = coachState.currentWorkout.exercises;
-
-  if (exercises.length === 0) {
-    container.innerHTML = '<p class="empty-state">No exercises in this workout.</p>';
-    return;
+  if (!favorites.length) {
+    container.innerHTML = '<p class="empty-state">No favorite workouts. Go to Log Workout, save a session, and star it.</p>';
+  } else {
+    container.innerHTML = favorites.map(w => `
+      <button class="coach-choose-card" data-workout-id="${w.id}">
+        <strong>${w.name}</strong>
+        <span>${w.exercises.length} exercise${w.exercises.length !== 1 ? 's' : ''}</span>
+      </button>
+    `).join('');
   }
 
-  const html = exercises.map((exercise, index) => {
-    const isLogged = coachState.loggedExercises.has(index);
-    const isMissed = coachState.missedExercises.has(index);
-    let status = '';
-    let statusClass = '';
+  showScreen('screen-choose');
+}
 
-    if (isLogged) {
-      status = '✓ Logged';
-      statusClass = 'logged';
-    } else if (isMissed) {
-      status = '◌ Skipped';
-      statusClass = 'missed';
+// ── Start workout ─────────────────────────────────────────────────
+function startWorkout(workoutId) {
+  const workout = workoutId
+    ? state.allWorkouts.find(w => w.id === workoutId)
+    : suggestWorkout();
+  if (!workout) return;
+
+  state.currentWorkout = workout;
+  state.exerciseQueue  = workout.exercises.map(e => ({ ...e }));
+  state.currentIndex   = 0;
+  state.logged         = [];
+  state.skipped        = new Set();
+
+  showExercise(0);
+}
+
+// ── Show exercise ─────────────────────────────────────────────────
+function showExercise(index) {
+  // Skip over already-logged indices if we're cycling back
+  while (index < state.exerciseQueue.length && state.logged.some(l => l._queueIndex === index)) {
+    index++;
+  }
+
+  if (index >= state.exerciseQueue.length) {
+    // Check if anything's left that isn't logged or skipped
+    const remaining = state.exerciseQueue.findIndex(
+      (_, i) => !state.logged.some(l => l._queueIndex === i) && !state.skipped.has(i)
+    );
+    if (remaining === -1) { showComplete(); return; }
+    index = remaining;
+  }
+
+  state.currentIndex = index;
+  const ex    = state.exerciseQueue[index];
+  const total = state.exerciseQueue.length;
+  const done  = state.logged.length;
+  const pct   = total > 0 ? (done / total) * 100 : 0;
+
+  qs('active-progress-bar').style.width    = `${pct}%`;
+  qs('active-progress-label').textContent  = `${done} of ${total} done`;
+  qs('active-exercise-name').textContent   = ex.name;
+
+  const def  = getSmartDefault(ex.name);
+  const last = getLastLog(ex.name);
+
+  qs('active-target').textContent    = `Target: ${def.sets} sets × ${def.reps} reps @ ${def.weight} lbs`;
+  qs('active-last-time').textContent = last
+    ? `Last time: ${last.sets}×${last.reps} @ ${last.weight} lbs`
+    : 'First time doing this one!';
+
+  qs('active-sets').value   = def.sets;
+  qs('active-reps').value   = def.reps;
+  qs('active-weight').value = def.weight;
+  qs('active-notes').value  = '';
+
+  qs('machine-taken-panel').classList.add('hidden');
+  qs('quit-panel').classList.add('hidden');
+  showScreen('screen-active');
+}
+
+// ── Machine taken panel ───────────────────────────────────────────
+function showMachineTaken() {
+  const ex      = state.exerciseQueue[state.currentIndex];
+  const panel   = qs('machine-taken-panel');
+  const content = panel.querySelector('.mt-content');
+
+  // Upcoming exercises not yet done or skipped
+  const upcoming = [];
+  for (let i = state.currentIndex + 1; i < state.exerciseQueue.length; i++) {
+    if (!state.logged.some(l => l._queueIndex === i) && !state.skipped.has(i)) {
+      upcoming.push({ index: i, name: state.exerciseQueue[i].name });
     }
+    if (upcoming.length >= 3) break;
+  }
 
-    return `
-      <div class="exercise-selection-item ${statusClass}">
-        <div class="exercise-selection-info">
-          <strong>${exercise.name}</strong>
-          <span>${exercise.sets}x${exercise.reps} @ ${exercise.weight} lbs</span>
-          ${status ? `<span class="status">${status}</span>` : ''}
-        </div>
-        <button type="button" class="btn-primary select-exercise" data-index="${index}">
-          ${isLogged ? 'Edit' : 'Log'}
-        </button>
-      </div>
-    `;
-  }).join('');
+  const alts = (ALTERNATIVES[ex.name] || []).slice(0, 3);
 
-  container.innerHTML = html;
-  updateProgress();
+  const upcomingHtml = upcoming.length
+    ? `<p class="mt-label">Jump ahead to:</p>` +
+      upcoming.map(u => `<button class="coach-alt-btn jump-to-btn" data-index="${u.index}">${u.name}</button>`).join('')
+    : '';
+
+  const altsHtml = alts.length
+    ? `<p class="mt-label">Or swap with:</p>` +
+      alts.map(n => `<button class="coach-alt-btn substitute-btn" data-name="${n}">${n}</button>`).join('')
+    : '';
+
+  content.innerHTML = upcomingHtml + altsHtml || '<p class="coach-meta">No alternatives on file for this exercise.</p>';
+  panel.classList.remove('hidden');
 }
 
-function updateProgress() {
-  const total = coachState.currentWorkout.exercises.length;
-  const logged = coachState.loggedExercises.size;
-  const percent = total > 0 ? (logged / total) * 100 : 0;
+// ── Log exercise ──────────────────────────────────────────────────
+function logCurrentExercise() {
+  const sets   = parseInt(qs('active-sets').value);
+  const reps   = parseInt(qs('active-reps').value);
+  const weight = parseFloat(qs('active-weight').value);
+  const notes  = qs('active-notes').value.trim();
 
-  document.getElementById('progress-text').textContent = 
-    `${logged} of ${total} exercises logged`;
-  document.getElementById('progress-fill').style.width = `${percent}%`;
-}
-
-function logExerciseForIndex(index) {
-  const exercise = coachState.currentWorkout.exercises[index];
-  if (!exercise) return;
-
-  const isEditing = coachState.loggedExercises.has(index);
-  const previousEntry = isEditing
-    ? coachState.currentSession.exercises.find(ex => ex.exerciseIndex === index)
-    : null;
-
-  const values = previousEntry
-    ? { sets: previousEntry.sets, reps: previousEntry.reps, weight: previousEntry.weight }
-    : getSmartDefaults(exercise.name, index);
-
-  document.getElementById('exercise-name-display').textContent = exercise.name;
-  document.getElementById('log-sets').value = values.sets;
-  document.getElementById('log-reps').value = values.reps;
-  document.getElementById('log-weight').value = values.weight;
-  document.getElementById('log-notes').value = previousEntry ? (previousEntry.notes || '') : '';
-
-  document.getElementById('exercise-log-form').dataset.exerciseIndex = index;
-
-  showScreen('log-exercise-screen');
-}
-
-function submitExerciseLog() {
-  const form = document.getElementById('exercise-log-form');
-  const index = parseInt(form.dataset.exerciseIndex);
-
-  const sets = parseInt(document.getElementById('log-sets').value);
-  const reps = parseInt(document.getElementById('log-reps').value);
-  const weight = parseInt(document.getElementById('log-weight').value);
-
-  if (!sets || !reps || weight < 0) {
-    alert('Please fill in all fields correctly');
+  if (!sets || !reps || isNaN(weight) || weight < 0) {
+    alert('Fill in sets, reps, and weight before continuing.');
     return;
   }
 
-  const exercise = coachState.currentWorkout.exercises[index];
-  const notes = document.getElementById('log-notes').value.trim();
+  const ex = state.exerciseQueue[state.currentIndex];
+  state.logged.push({
+    id: `exercise-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    name: ex.name,
+    sets, reps, weight, notes,
+    favorite: false,
+    _queueIndex: state.currentIndex,
+  });
 
-  const existingIdx = coachState.currentSession.exercises.findIndex(
-    ex => ex.exerciseIndex === index
+  // Find next un-done exercise
+  const next = state.exerciseQueue.findIndex(
+    (_, i) => i > state.currentIndex &&
+      !state.logged.some(l => l._queueIndex === i) &&
+      !state.skipped.has(i)
   );
 
-  const entry = { exerciseIndex: index, name: exercise.name, sets, reps, weight, notes, timestamp: Date.now() };
-
-  if (existingIdx !== -1) {
-    coachState.currentSession.exercises[existingIdx] = entry;
+  if (next === -1) {
+    // No more ahead — check for skipped or finish
+    showComplete();
   } else {
-    coachState.currentSession.exercises.push(entry);
+    showExercise(next);
   }
-
-  coachState.loggedExercises.add(index);
-  coachState.missedExercises.delete(index);
-
-  checkWorkoutCompletion();
 }
 
+// ── Skip / jump / substitute ──────────────────────────────────────
 function skipExercise() {
-  const form = document.getElementById('exercise-log-form');
-  const index = parseInt(form.dataset.exerciseIndex);
+  state.skipped.add(state.currentIndex);
+  qs('machine-taken-panel').classList.add('hidden');
 
-  coachState.missedExercises.add(index);
-
-  checkWorkoutCompletion();
+  const next = state.exerciseQueue.findIndex(
+    (_, i) => i > state.currentIndex &&
+      !state.logged.some(l => l._queueIndex === i) &&
+      !state.skipped.has(i)
+  );
+  next === -1 ? showComplete() : showExercise(next);
 }
 
-function checkWorkoutCompletion() {
-  const total = coachState.currentWorkout.exercises.length;
-  const logged = coachState.loggedExercises.size;
+function jumpToExercise(targetIndex) {
+  state.skipped.add(state.currentIndex);
+  qs('machine-taken-panel').classList.add('hidden');
+  showExercise(targetIndex);
+}
 
-  // If all exercises logged, go to complete screen
-  if (logged === total) {
-    showWorkoutComplete();
+function substituteExercise(name) {
+  state.exerciseQueue[state.currentIndex] = {
+    ...state.exerciseQueue[state.currentIndex],
+    name,
+  };
+  qs('machine-taken-panel').classList.add('hidden');
+  showExercise(state.currentIndex);
+}
+
+// ── End early ─────────────────────────────────────────────────────
+function showQuitPanel() {
+  qs('machine-taken-panel').classList.add('hidden');
+  const tease = getMotivationalMessage('quit');
+  const teaseEl = qs('quit-tease');
+  teaseEl.textContent = tease || '';
+  teaseEl.style.display = tease ? '' : 'none';
+  qs('quit-panel').classList.remove('hidden');
+  qs('quit-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function hideQuitPanel() {
+  qs('quit-panel').classList.add('hidden');
+}
+
+async function endEarly() {
+  hideQuitPanel();
+  if (state.logged.length === 0) {
+    // Nothing logged — just bail
+    state.currentWorkout = null;
+    state.exerciseQueue  = [];
+    state.logged         = [];
+    state.skipped        = new Set();
+    await loadAllWorkouts();
+    renderHome();
+    return;
+  }
+  // Save whatever was logged
+  await saveAndEnd();
+}
+
+// ── Complete screen ───────────────────────────────────────────────
+function showComplete() {
+  qs('complete-stat-done').textContent  = state.logged.length;
+  qs('complete-stat-total').textContent = state.exerciseQueue.length;
+
+  const skippedSection = qs('complete-skipped-section');
+  const skippedList    = qs('complete-skipped-list');
+
+  const skippedItems = Array.from(state.skipped).map(i => ({
+    index: i,
+    name:  state.exerciseQueue[i].name,
+  }));
+
+  if (skippedItems.length) {
+    skippedList.innerHTML = skippedItems.map(s => `
+      <div class="complete-skipped-item">
+        <span>${s.name}</span>
+        <button class="secondary-button do-skipped-btn" data-index="${s.index}">Do it now</button>
+      </div>
+    `).join('');
+    skippedSection.style.display = '';
   } else {
-    // Otherwise, show exercise selection again
-    showExerciseSelection();
-  }
-}
-
-function showWorkoutComplete() {
-  showScreen('workout-complete-screen');
-  renderWorkoutSummary();
-}
-
-function renderWorkoutSummary() {
-  const summary = document.getElementById('workout-summary');
-  const logged = coachState.loggedExercises.size;
-  const total = coachState.currentWorkout.exercises.length;
-  const missed = coachState.missedExercises.size;
-
-  let html = `
-    <div class="summary-stats">
-      <p><strong>${logged} of ${total}</strong> exercises completed</p>
-  `;
-
-  if (missed > 0) {
-    html += `<p><strong>${missed}</strong> exercises skipped</p>`;
+    skippedSection.style.display = 'none';
   }
 
-  html += '</div>';
-
-  summary.innerHTML = html;
-
-  // Show missed exercises section if any exist
-  const missedSection = document.getElementById('missed-exercises');
-  if (missed > 0) {
-    missedSection.classList.remove('hidden');
-    renderMissedExercises();
-  } else {
-    missedSection.classList.add('hidden');
+  const completeMsg = getMotivationalMessage('complete');
+  const completeMsgEl = qs('complete-message');
+  if (completeMsgEl) {
+    completeMsgEl.textContent = completeMsg || '';
+    completeMsgEl.style.display = completeMsg ? '' : 'none';
   }
+
+  showScreen('screen-complete');
 }
 
-function renderMissedExercises() {
-  const container = document.getElementById('missed-list');
-  const exercises = coachState.currentWorkout.exercises;
-
-  const missedHtml = Array.from(coachState.missedExercises)
-    .map(index => {
-      const exercise = exercises[index];
-      return `
-        <div class="exercise-selection-item">
-          <div class="exercise-selection-info">
-            <strong>${exercise.name}</strong>
-            <span>${exercise.sets}x${exercise.reps} @ ${exercise.weight} lbs</span>
-          </div>
-          <button type="button" class="btn-secondary select-missed-exercise" data-index="${index}">
-            Log
-          </button>
-        </div>
-      `;
-    })
-    .join('');
-
-  container.innerHTML = missedHtml;
-}
-
-function showAddExercisePanel() {
-  const hasTemplate = !!(coachState.currentWorkout && coachState.currentWorkout.id);
-  const saveBtn = document.getElementById('add-and-save-btn');
-  saveBtn.style.display = hasTemplate ? '' : 'none';
-
-  document.getElementById('add-ex-name').value = '';
-  document.getElementById('add-ex-sets').value = '3';
-  document.getElementById('add-ex-reps').value = '8';
-  document.getElementById('add-ex-weight').value = '100';
-
-  document.getElementById('add-exercise-panel').classList.remove('hidden');
-  document.getElementById('add-exercise-btn').classList.add('hidden');
-  document.getElementById('add-ex-name').focus();
-}
-
-function hideAddExercisePanel() {
-  document.getElementById('add-exercise-panel').classList.add('hidden');
-  document.getElementById('add-exercise-btn').classList.remove('hidden');
-}
-
-function addMidSessionExercise(saveToWorkout) {
-  const name = document.getElementById('add-ex-name').value.trim();
-  const sets = parseInt(document.getElementById('add-ex-sets').value);
-  const reps = parseInt(document.getElementById('add-ex-reps').value);
-  const weight = parseInt(document.getElementById('add-ex-weight').value);
-
-  if (!name || !sets || !reps || weight < 0) {
-    alert('Please fill in all fields correctly.');
+// ── Save workout ──────────────────────────────────────────────────
+async function saveAndEnd() {
+  if (!state.logged.length) {
+    alert('Nothing was logged this session.');
     return;
   }
 
-  const newExercise = { name, sets, reps, weight };
-  coachState.currentWorkout.exercises.push(newExercise);
-
-  if (saveToWorkout && coachState.currentWorkout.id) {
-    loadWorkouts();
-    const idx = workouts.findIndex(w => w.id === coachState.currentWorkout.id);
-    if (idx !== -1) {
-      workouts[idx].exercises.push({ ...newExercise });
-      saveWorkouts();
-    }
-  }
-
-  hideAddExercisePanel();
-  renderExercisesSelection();
-}
-
-function endWorkout() {
-  // Save the completed workout
   const session = {
     id: `session-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    name: coachState.currentSession.workoutName,
+    name: state.currentWorkout.name,
     favorite: false,
-    timestamp: coachState.currentSession.startTime,
-    exercises: coachState.currentSession.exercises.map(ex => ({
-      id: `exercise-${ex.timestamp}-${Math.random().toString(36).slice(2)}`,
-      name: ex.name,
-      sets: ex.sets,
-      reps: ex.reps,
-      weight: ex.weight,
-      notes: ex.notes || '',
-      favorite: false
-    }))
+    timestamp: Date.now(),
+    exercises: state.logged.map(({ _queueIndex, ...ex }) => ex),
   };
 
-  loadWorkouts();
-  workouts.push(session);
+  // localStorage cache
+  try {
+    const stored = JSON.parse(localStorage.getItem('strengthTrackerExercises') || '[]');
+    stored.push(session);
+    localStorage.setItem('strengthTrackerExercises', JSON.stringify(stored));
+  } catch (_) {}
 
-  // If this workout was started from a favorited template, update it with the new values
-  if (coachState.currentWorkout && coachState.currentWorkout.id) {
-    const templateIndex = workouts.findIndex(w => w.id === coachState.currentWorkout.id);
-    if (templateIndex !== -1) {
-      // Update each exercise in the template with the completed values
-      const loggedExercises = coachState.currentSession.exercises;
-      workouts[templateIndex].exercises = workouts[templateIndex].exercises.map(templateEx => {
-        const completed = loggedExercises.find(logged => logged.name === templateEx.name);
-        if (completed) {
-          return {
-            ...templateEx,
-            sets: completed.sets,
-            reps: completed.reps,
-            weight: completed.weight
-          };
-        }
-        return templateEx;
-      });
+  // Firestore
+  if (state.currentUser) {
+    try {
+      await setDoc(doc(db, 'users', state.currentUser.uid, 'workouts', session.id), session);
+    } catch (e) {
+      console.error('Firestore save failed:', e);
     }
   }
 
-  saveWorkouts();
+  const saveMsg = getMotivationalMessage('save');
+  if (saveMsg) alert(saveMsg);
 
-  // Reset and go back to start
-  coachState = {
-    currentWorkout: null,
-    currentSession: null,
-    currentExerciseIndex: 0,
-    loggedExercises: new Set(),
-    missedExercises: new Set(),
-  };
+  state.currentWorkout = null;
+  state.exerciseQueue  = [];
+  state.logged         = [];
+  state.skipped        = new Set();
 
-  renderFavoriteWorkouts();
-  showScreen('select-workout-screen');
-  alert('Workout saved successfully!');
+  await loadAllWorkouts();
+  renderHome();
 }
 
-function updateRepHint() {
-  const hint = document.querySelector('.rep-hint');
-  if (!hint) return;
+// ── Load data ─────────────────────────────────────────────────────
+async function loadAllWorkouts() {
+  if (!state.currentUser) return;
   try {
-    const profile = JSON.parse(localStorage.getItem('strengthTrackerProfile') || '{}');
-    const range = profile.preferredRepRange || profile.hypertrophy?.preferredRepRange;
-    hint.textContent = range
-      ? `Keep reps in your preferred range: ${range}`
-      : 'Only count reps completed through your full range of motion.';
-  } catch (_) {}
+    const snap = await getDocs(collection(db, 'users', state.currentUser.uid, 'workouts'));
+    state.allWorkouts = snap.docs.map(d => d.data());
+  } catch (_) {
+    try {
+      state.allWorkouts = JSON.parse(localStorage.getItem('strengthTrackerExercises') || '[]');
+    } catch (__) {
+      state.allWorkouts = [];
+    }
+  }
 }
 
-// Event Listeners
+// ── Events ────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  updateRepHint();
-  renderFavoriteWorkouts();
 
-  // Select workout screen
-  document.getElementById('favorite-workouts').addEventListener('click', (e) => {
-    if (e.target.matches('.start-favorite-workout')) {
-      const sessionId = e.target.dataset.sessionId;
-      startFavoriteWorkout(sessionId);
+  // Home
+  qs('start-suggested-btn').addEventListener('click', () => {
+    startWorkout(qs('start-suggested-btn').dataset.workoutId || null);
+  });
+  qs('choose-different-btn').addEventListener('click', renderChooseScreen);
+
+  // Choose
+  qs('back-to-home-btn').addEventListener('click', renderHome);
+  qs('choose-workouts-list').addEventListener('click', e => {
+    const card = e.target.closest('.coach-choose-card');
+    if (card) startWorkout(card.dataset.workoutId);
+  });
+
+  // Active
+  qs('active-done-btn').addEventListener('click', logCurrentExercise);
+  qs('active-machine-taken-btn').addEventListener('click', showMachineTaken);
+  qs('end-early-btn').addEventListener('click', showQuitPanel);
+  qs('quit-cancel-btn').addEventListener('click', hideQuitPanel);
+  qs('quit-confirm-btn').addEventListener('click', endEarly);
+
+  // Machine taken panel
+  qs('machine-taken-panel').addEventListener('click', e => {
+    if (e.target.matches('.jump-to-btn'))        jumpToExercise(parseInt(e.target.dataset.index));
+    if (e.target.matches('.substitute-btn'))     substituteExercise(e.target.dataset.name);
+    if (e.target.id === 'skip-exercise-btn')     skipExercise();
+    if (e.target.id === 'cancel-machine-taken-btn') qs('machine-taken-panel').classList.add('hidden');
+  });
+
+  // Complete
+  qs('save-workout-btn').addEventListener('click', saveAndEnd);
+  qs('complete-skipped-list').addEventListener('click', e => {
+    if (e.target.matches('.do-skipped-btn')) {
+      const idx = parseInt(e.target.dataset.index);
+      state.skipped.delete(idx);
+      showExercise(idx);
     }
   });
+});
 
-  document.getElementById('new-workout-form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const name = document.getElementById('new-workout-name').value.trim();
-    if (name) {
-      createNewWorkout(name);
-      document.getElementById('new-workout-name').value = '';
-    }
-  });
-
-  // Start workout screen
-  document.getElementById('back-to-select').addEventListener('click', () => {
-    showScreen('select-workout-screen');
-    coachState = {
-      currentWorkout: null,
-      currentSession: null,
-      currentExerciseIndex: 0,
-      loggedExercises: new Set(),
-      missedExercises: new Set(),
-    };
-  });
-
-  document.getElementById('exercises-list').addEventListener('click', (e) => {
-    if (e.target.matches('.select-exercise')) {
-      const index = parseInt(e.target.dataset.index);
-      logExerciseForIndex(index);
-    }
-  });
-
-  // Add exercise mid-session
-  document.getElementById('add-exercise-btn').addEventListener('click', showAddExercisePanel);
-  document.getElementById('cancel-add-exercise-btn').addEventListener('click', hideAddExercisePanel);
-  document.getElementById('add-session-only-btn').addEventListener('click', () => addMidSessionExercise(false));
-  document.getElementById('add-and-save-btn').addEventListener('click', () => addMidSessionExercise(true));
-
-  // Log exercise screen
-  document.getElementById('exercise-log-form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    submitExerciseLog();
-  });
-
-  document.getElementById('skip-exercise').addEventListener('click', () => {
-    skipExercise();
-  });
-
-  document.getElementById('close-log').addEventListener('click', () => {
-    showExerciseSelection();
-  });
-
-  // Workout complete screen
-  document.getElementById('missed-list').addEventListener('click', (e) => {
-    if (e.target.matches('.select-missed-exercise')) {
-      const index = parseInt(e.target.dataset.index);
-      logExerciseForIndex(index);
-    }
-  });
-
-  document.getElementById('go-back-button').addEventListener('click', () => {
-    showExerciseSelection();
-  });
-
-  document.getElementById('end-workout-button').addEventListener('click', () => {
-    endWorkout();
-  });
+// ── Auth ──────────────────────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+  state.currentUser = user;
+  if (user) {
+    await loadAllWorkouts();
+    renderHome();
+  }
 });

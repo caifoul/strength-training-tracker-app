@@ -1,11 +1,13 @@
-// Floating music widget — integrates with the browser's active Media Session.
-// Controls any <audio>/<video> on the page; hardware media keys route here
-// via the Media Session API when this tab has focus.
 (function () {
   'use strict';
   if (document.getElementById('music-widget')) return;
 
-  // ── Inject markup ──────────────────────────────────────────────────────────
+  // Load the SoundCloud Widget API
+  const scApi = document.createElement('script');
+  scApi.src = 'https://w.soundcloud.com/player/api.js';
+  document.head.appendChild(scApi);
+
+  // ── Markup ─────────────────────────────────────────────────────────────────
   const root = document.createElement('div');
   root.id = 'music-widget';
   root.className = 'mw mw--tiny';
@@ -25,46 +27,60 @@
       <p class="mw-card-title">No media playing</p>
       <p class="mw-card-artist">—</p>
       <div class="mw-card-controls">
-        <button class="mw-btn-prev mw-ctrl-btn" aria-label="Previous / Rewind 10 s">⏮</button>
+        <button class="mw-btn-prev mw-ctrl-btn" aria-label="Previous">⏮</button>
         <button class="mw-btn-play mw-ctrl-btn" aria-label="Play or pause">▶</button>
-        <button class="mw-btn-next mw-ctrl-btn" aria-label="Next / Forward 10 s">⏭</button>
+        <button class="mw-btn-next mw-ctrl-btn" aria-label="Next">⏭</button>
+      </div>
+      <div class="mw-sc-section">
+        <p class="mw-sc-label">SoundCloud</p>
+        <div class="mw-sc-input-row">
+          <input class="mw-sc-url" type="url" placeholder="Paste a track or playlist URL…" spellcheck="false" autocomplete="off" />
+          <button class="mw-sc-load-btn mw-ctrl-btn">Load</button>
+        </div>
       </div>
     </div>
   `;
   document.body.appendChild(root);
 
+  // Hidden SC iframe — needs real off-screen dimensions so SC initialises properly
+  const scIframe = document.createElement('iframe');
+  scIframe.id = 'mw-sc-iframe';
+  scIframe.setAttribute('allow', 'autoplay');
+  scIframe.setAttribute('scrolling', 'no');
+  scIframe.setAttribute('frameborder', 'no');
+  scIframe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:300px;height:166px;border:0;';
+  document.body.appendChild(scIframe);
+
   // ── State ──────────────────────────────────────────────────────────────────
   let isPlaying = false;
+  let scWidget  = null;
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
   function qs(sel) { return root.querySelector(sel); }
 
-  function pageMedia() {
-    // Exclude any silence shim audio elements used by other scripts
-    return document.querySelector('audio:not([data-mw-shim]), video');
-  }
-
+  // ── Icons ──────────────────────────────────────────────────────────────────
   function syncPlayIcons() {
     const icon = isPlaying ? '⏸' : '▶';
     qs('.mw-pill-play').textContent = icon;
-    qs('.mw-btn-play').textContent = icon;
+    qs('.mw-btn-play').textContent  = icon;
   }
 
-  // ── Display update ─────────────────────────────────────────────────────────
-  function applyMeta(meta) {
-    const title = meta?.title || 'No media playing';
-    const artist = meta?.artist || '—';
-    qs('.mw-card-title').textContent = title;
+  // ── Metadata ───────────────────────────────────────────────────────────────
+  function applySound(sound) {
+    if (!sound) return;
+    const title  = sound.title || 'Unknown track';
+    const artist = sound.user?.username || sound.label_name || '—';
+    const artUrl = sound.artwork_url
+      ? sound.artwork_url.replace('-large', '-t300x300')
+      : null;
+
+    qs('.mw-card-title').textContent  = title;
     qs('.mw-card-artist').textContent = artist;
-    qs('.mw-pill-title').textContent = meta?.title || 'No media';
+    qs('.mw-pill-title').textContent  = title;
 
     const img = qs('.mw-art-img');
     const ph  = qs('.mw-art-placeholder');
-    const art  = meta?.artwork;
-    const best = art && art.length ? art[art.length - 1] : null;
-
-    if (best && best.src) {
-      if (img.src !== best.src) img.src = best.src;
+    if (artUrl) {
+      img.src = artUrl;
       img.style.display = '';
       ph.style.display  = 'none';
     } else {
@@ -73,61 +89,66 @@
     }
   }
 
-  // ── Media Session polling ──────────────────────────────────────────────────
-  function poll() {
-    const ms = 'mediaSession' in navigator ? navigator.mediaSession : null;
-
-    if (ms) {
-      applyMeta(ms.metadata);
-      if (ms.playbackState === 'playing') isPlaying = true;
-      else if (ms.playbackState === 'paused') isPlaying = false;
+  // ── Load SoundCloud URL ────────────────────────────────────────────────────
+  function loadSoundCloud(url) {
+    if (!url.includes('soundcloud.com')) {
+      alert('Please paste a valid SoundCloud URL.');
+      return;
     }
 
-    // Prefer page media element's actual state
-    const media = pageMedia();
-    if (media) isPlaying = !media.paused;
+    qs('.mw-card-title').textContent  = 'Loading…';
+    qs('.mw-card-artist').textContent = '—';
+    qs('.mw-pill-title').textContent  = 'Loading…';
 
-    syncPlayIcons();
-  }
+    const embedSrc =
+      'https://w.soundcloud.com/player/?url=' + encodeURIComponent(url) +
+      '&color=%23cc00ff&auto_play=true&hide_related=true' +
+      '&show_comments=false&show_user=true&show_reposts=false&show_teaser=false';
 
-  // ── Register hardware media key handlers ───────────────────────────────────
-  function registerHandlers() {
-    if (!('mediaSession' in navigator)) return;
-    const ms = navigator.mediaSession;
-    const safe = (type, fn) => { try { ms.setActionHandler(type, fn); } catch (_) {} };
+    scIframe.src = embedSrc;
 
-    safe('play',           () => { isPlaying = true;  syncPlayIcons(); });
-    safe('pause',          () => { isPlaying = false; syncPlayIcons(); });
-    safe('previoustrack',  () => doSeek(-10));
-    safe('nexttrack',      () => doSeek(10));
+    const tryBind = () => {
+      if (!window.SC?.Widget) { setTimeout(tryBind, 300); return; }
+
+      scWidget = window.SC.Widget(scIframe);
+
+      scWidget.bind(window.SC.Widget.Events.READY, () => {
+        scWidget.getCurrentSound(applySound);
+      });
+
+      scWidget.bind(window.SC.Widget.Events.PLAY, () => {
+        isPlaying = true;
+        syncPlayIcons();
+        scWidget.getCurrentSound(applySound);
+      });
+
+      scWidget.bind(window.SC.Widget.Events.PAUSE, () => {
+        isPlaying = false;
+        syncPlayIcons();
+      });
+
+      scWidget.bind(window.SC.Widget.Events.FINISH, () => {
+        isPlaying = false;
+        syncPlayIcons();
+      });
+    };
+    tryBind();
   }
 
   // ── Controls ───────────────────────────────────────────────────────────────
   function doTogglePlay() {
-    const media = pageMedia();
-    if (media) {
-      if (media.paused) { media.play().catch(() => {}); isPlaying = true; }
-      else              { media.pause();                isPlaying = false; }
-    } else {
-      isPlaying = !isPlaying;
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
-      }
-    }
-    syncPlayIcons();
+    if (!scWidget) return;
+    if (isPlaying) scWidget.pause();
+    else           scWidget.play();
   }
 
-  function doSeek(delta) {
-    const media = pageMedia();
-    if (media && isFinite(media.duration)) {
-      media.currentTime = Math.max(0, Math.min(media.duration, media.currentTime + delta));
-    }
-  }
+  function doPrev() { if (scWidget) scWidget.prev(); }
+  function doNext() { if (scWidget) scWidget.next(); }
 
   // ── Size toggle ────────────────────────────────────────────────────────────
   function setSize(medium) {
     root.classList.toggle('mw--medium', medium);
-    root.classList.toggle('mw--tiny',  !medium);
+    root.classList.toggle('mw--tiny',   !medium);
   }
 
   // ── Event wiring ───────────────────────────────────────────────────────────
@@ -135,11 +156,18 @@
   qs('.mw-card-close').addEventListener('click',  () => setSize(false));
   qs('.mw-pill-play').addEventListener('click',   doTogglePlay);
   qs('.mw-btn-play').addEventListener('click',    doTogglePlay);
-  qs('.mw-btn-prev').addEventListener('click',    () => doSeek(-10));
-  qs('.mw-btn-next').addEventListener('click',    () => doSeek(10));
+  qs('.mw-btn-prev').addEventListener('click',    doPrev);
+  qs('.mw-btn-next').addEventListener('click',    doNext);
 
-  // ── Boot ───────────────────────────────────────────────────────────────────
-  registerHandlers();
-  poll();
-  setInterval(poll, 1500);
+  qs('.mw-sc-load-btn').addEventListener('click', () => {
+    const url = qs('.mw-sc-url').value.trim();
+    if (url) loadSoundCloud(url);
+  });
+
+  qs('.mw-sc-url').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const url = e.target.value.trim();
+      if (url) loadSoundCloud(url);
+    }
+  });
 })();

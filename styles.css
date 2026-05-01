@@ -1,6 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
+
 :root {
   color-scheme: dark;
   font-family: Inter, system-ui, sans-serif;
+  --font-graffiti: 'Permanent Marker', cursive;
+  --glow-graffiti: 0 0 14px rgba(204, 0, 255, 0.75), 0 0 36px rgba(204, 0, 255, 0.35);
   background: #07000f;
   color: #eddeff;
 
@@ -20,6 +24,47 @@
   --text-muted: #5a3575;
   --danger: #ff2266;
   --success: #00ffaa;
+}
+
+/* ── Graffiti type ───────────────────────────────────────────────── */
+h1, h2, h3,
+.nav-links a,
+button,
+.step-indicator,
+legend,
+.session-card-header h3,
+.mw-card-title,
+.mw-pill-title,
+.mw-sc-label,
+.warmup-active-name,
+.account-link {
+  font-family: var(--font-graffiti);
+  letter-spacing: 0.01em;
+}
+
+h1 {
+  text-shadow: var(--glow-graffiti);
+}
+
+h2 {
+  text-shadow: 0 0 10px rgba(204, 0, 255, 0.5), 0 0 24px rgba(204, 0, 255, 0.2);
+}
+
+h3 {
+  text-shadow: 0 0 8px rgba(204, 0, 255, 0.4);
+}
+
+.nav-links a {
+  text-shadow: none;
+  letter-spacing: 0.03em;
+}
+
+.nav-links a:hover {
+  text-shadow: var(--neon-glow-sm);
+}
+
+button {
+  letter-spacing: 0.04em;
 }
 
 * {
@@ -74,10 +119,10 @@ body {
 
 .app-header h1 {
   margin: 0 0 0.5rem;
-  font-size: clamp(2rem, 3vw, 3rem);
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
   color: #fff;
-  text-shadow: var(--neon-glow);
-  letter-spacing: -0.02em;
+  text-shadow: var(--glow-graffiti);
+  letter-spacing: 0.02em;
 }
 
 .app-header p {
@@ -107,8 +152,8 @@ body {
   border-radius: 10px;
   background: rgba(204, 0, 255, 0.08);
   border: 1px solid var(--border);
-  font-weight: 600;
-  font-size: 0.9rem;
+  font-weight: 400;
+  font-size: 0.95rem;
   transition: all 0.2s ease;
 }
 
@@ -211,7 +256,7 @@ button {
   background: var(--neon);
   color: #fff;
   font-weight: 700;
-  font-family: inherit;
+  font-family: var(--font-graffiti);
   transition: all 0.2s ease;
   box-shadow: 0 0 14px rgba(204, 0, 255, 0.45);
 }
@@ -508,10 +553,32 @@ legend {
   align-items: center;
 }
 
-.exercise-reorder {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+.drag-handle {
+  cursor: grab;
+  color: var(--text-dim);
+  font-size: 1.4rem;
+  padding: 0 0.4rem;
+  user-select: none;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.exercise-item[draggable] {
+  cursor: default;
+}
+
+.exercise-item.dragging {
+  opacity: 0.35;
+  border-style: dashed;
+}
+
+.exercise-item.drag-over {
+  border-color: var(--border-bright);
+  background: rgba(204, 0, 255, 0.1);
 }
 
 .btn-icon {
@@ -985,6 +1052,337 @@ legend {
   gap: 0.5rem;
 }
 
+/* ── Automated Coach (coach.html) ────────────────────────────────── */
+.coach-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--neon);
+  margin: 0 0 0.4rem;
+  font-family: inherit;
+}
+
+.coach-home-card {
+  text-align: center;
+  padding: 2.5rem 2rem;
+}
+
+.coach-home-card h2 {
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  margin: 0 0 0.4rem;
+  color: #fff;
+  text-shadow: var(--glow-graffiti);
+}
+
+.coach-meta {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  margin: 0 0 0.5rem;
+}
+
+.coach-preview {
+  color: var(--text-dim);
+  font-size: 0.92rem;
+  margin: 0 0 1.75rem;
+}
+
+.coach-home-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.coach-home-actions button {
+  width: 100%;
+  max-width: 320px;
+}
+
+.coach-choose-list {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.coach-choose-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--text);
+  text-align: left;
+  transition: all 0.2s ease;
+  gap: 1rem;
+  font-family: inherit;
+  box-shadow: none;
+}
+
+.coach-choose-card:hover {
+  border-color: var(--border-bright);
+  background: rgba(204, 0, 255, 0.08);
+  box-shadow: var(--neon-glow-sm);
+  transform: translateY(-1px);
+}
+
+.coach-choose-card strong {
+  font-family: var(--font-graffiti);
+  font-size: 1.05rem;
+}
+
+.coach-choose-card span {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.coach-progress-wrap {
+  margin-bottom: 0.5rem;
+}
+
+.coach-progress-bar-track {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-lift);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  margin-bottom: 0.4rem;
+}
+
+.coach-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--neon), var(--hot));
+  box-shadow: 0 0 12px rgba(204, 0, 255, 0.7);
+  transition: width 0.4s ease;
+  border-radius: 999px;
+}
+
+.coach-progress-label {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-align: right;
+  margin: 0;
+}
+
+.coach-exercise-name {
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  color: #fff;
+  margin: 0 0 0.5rem;
+  text-shadow: var(--glow-graffiti);
+  line-height: 1.1;
+}
+
+.coach-target {
+  font-size: 1rem;
+  color: var(--neon);
+  font-weight: 600;
+  margin: 0 0 0.3rem;
+}
+
+.coach-last-time {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0 0 1.5rem;
+}
+
+.coach-log-form {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.coach-action-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.coach-action-row button {
+  width: 100%;
+}
+
+.coach-panel {
+  margin-top: 1.25rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-bright);
+  border-radius: 16px;
+  padding: 1.25rem;
+  animation: fadeIn 0.2s ease;
+}
+
+.coach-panel-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 1rem;
+}
+
+.mt-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0.75rem 0 0.5rem;
+  font-family: inherit;
+}
+
+.mt-label:first-child { margin-top: 0; }
+
+.coach-alt-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 0.4rem;
+  background: rgba(204, 0, 255, 0.08);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+  box-shadow: none;
+  transition: all 0.15s ease;
+}
+
+.coach-alt-btn:hover {
+  background: rgba(204, 0, 255, 0.18);
+  border-color: var(--border-bright);
+  transform: none;
+  box-shadow: none;
+}
+
+.mt-footer {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.mt-footer button {
+  flex: 1;
+  padding: 0.65rem;
+  font-size: 0.85rem;
+}
+
+.coach-complete-stats {
+  font-size: 2rem;
+  font-family: var(--font-graffiti);
+  color: var(--neon);
+  text-shadow: var(--glow-graffiti);
+  margin: 0.75rem 0 1.5rem;
+}
+
+.coach-complete-of,
+.coach-complete-label {
+  font-size: 1.1rem;
+  color: var(--text-dim);
+}
+
+.coach-skipped-list {
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+
+.complete-skipped-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  background: var(--bg-surface);
+  border: 1px solid rgba(255, 200, 0, 0.3);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+}
+
+.complete-skipped-item span {
+  color: var(--text-dim);
+  font-size: 0.95rem;
+}
+
+.complete-skipped-item button {
+  flex-shrink: 0;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.85rem;
+}
+
+.end-early-wrap {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.end-early-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-family: inherit;
+  padding: 0.25rem 0.5rem;
+  box-shadow: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+}
+
+.end-early-btn:hover {
+  color: var(--danger);
+  background: none;
+  transform: none;
+  box-shadow: none;
+}
+
+.coach-quit-panel {
+  margin-top: 1rem;
+  background: rgba(255, 34, 102, 0.06);
+  border: 1px solid rgba(255, 34, 102, 0.3);
+  border-radius: 14px;
+  padding: 1.25rem;
+  text-align: center;
+  animation: fadeIn 0.2s ease;
+}
+
+.quit-tease {
+  font-family: var(--font-graffiti);
+  font-size: 1.3rem;
+  color: var(--danger);
+  text-shadow: 0 0 12px rgba(255, 34, 102, 0.5);
+  margin: 0 0 1rem;
+  letter-spacing: 0.02em;
+}
+
+.quit-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.quit-actions button {
+  flex: 1;
+  min-width: 120px;
+  max-width: 200px;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.quit-confirm-btn {
+  background: rgba(255, 34, 102, 0.2);
+  color: var(--danger);
+  border: 1px solid rgba(255, 34, 102, 0.4);
+  box-shadow: none;
+}
+
+.quit-confirm-btn:hover {
+  background: rgba(255, 34, 102, 0.35);
+  box-shadow: 0 0 12px rgba(255, 34, 102, 0.4);
+  transform: none;
+}
+
 .summary-stats p {
   margin: 0;
   color: var(--text);
@@ -1144,7 +1542,7 @@ legend {
 
 .mw-card {
   position: relative;
-  width: 216px;
+  width: 260px;
   padding: 2.4rem 1.1rem 1.25rem;
   background: rgba(12, 0, 25, 0.96);
   backdrop-filter: blur(20px);
@@ -1268,6 +1666,65 @@ legend {
   box-shadow: var(--neon-glow);
 }
 
+/* ── Music widget SoundCloud section ────────────────────────────── */
+.mw-sc-section {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.85rem;
+}
+
+.mw-sc-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 0.55rem;
+}
+
+.mw-sc-input-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.mw-sc-url {
+  flex: 1;
+  min-width: 0;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.75rem;
+  background: var(--bg-lift);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  outline: none;
+  font-family: inherit;
+}
+
+.mw-sc-url:focus {
+  border-color: var(--border-bright);
+  box-shadow: 0 0 0 2px rgba(204, 0, 255, 0.18);
+}
+
+.mw-sc-load-btn {
+  flex-shrink: 0;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--neon);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+  box-shadow: none;
+}
+
+.mw-sc-load-btn:hover {
+  background: #d900ff;
+  transform: none;
+  box-shadow: none;
+}
+
 /* ── Warmup modal ────────────────────────────────────────────────── */
 .warmup-modal-content {
   max-width: 580px;
@@ -1380,6 +1837,67 @@ legend {
   gap: 0.6rem;
 }
 
+/* ── 7-Day Progression list ──────────────────────────────────────── */
+.prog-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.prog-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.95rem;
+}
+
+.prog-name {
+  color: var(--text);
+  font-weight: 600;
+  font-family: var(--font-graffiti);
+  font-size: 1rem;
+}
+
+.prog-weight {
+  color: #ffd700;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+  white-space: nowrap;
+}
+
+.prog-up {
+  color: #39ff14;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(57, 255, 20, 0.4);
+  white-space: nowrap;
+}
+
+.prog-new {
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.prog-down {
+  color: var(--danger);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Coach complete message ──────────────────────────────────────── */
+.coach-complete-message {
+  font-family: var(--font-graffiti);
+  color: var(--neon);
+  text-shadow: var(--neon-glow-sm);
+  font-size: 1.15rem;
+  margin: 0.75rem 0 1.25rem;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
 .warmup-steps-list li {
   color: var(--text);
   font-size: 1rem;
@@ -1387,47 +1905,13 @@ legend {
 }
 
 /* ── App overview ────────────────────────────────────────────────── */
-.overview-steps {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.overview-step {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
-  background: rgba(204, 0, 255, 0.1);
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 0.85rem;
-  transition: all 0.2s ease;
-}
-
-.overview-step:hover {
-  border-color: var(--border-bright);
-  color: #fff;
-  box-shadow: var(--neon-glow-sm);
-  background: rgba(204, 0, 255, 0.2);
-}
-
-.overview-arrow {
-  color: var(--text-muted);
-  font-size: 0.85rem;
-}
-
 .overview-stats {
   display: flex;
   gap: 1.25rem;
   flex-wrap: wrap;
-  margin-top: 0.85rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--text-muted);
@@ -1436,6 +1920,48 @@ legend {
 .overview-stats span {
   color: var(--neon);
   font-size: 0.82rem;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 1rem;
+}
+
+.overview-card {
+  display: block;
+  text-decoration: none;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.25rem;
+  transition: all 0.2s ease;
+}
+
+.overview-card:hover {
+  border-color: var(--border-bright);
+  background: rgba(204, 0, 255, 0.08);
+  box-shadow: var(--neon-glow-sm);
+  transform: translateY(-2px);
+}
+
+.overview-card-icon {
+  font-size: 1.75rem;
+  margin-bottom: 0.6rem;
+  line-height: 1;
+}
+
+.overview-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.overview-card p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  line-height: 1.55;
 }
 
 /* ── Modal ───────────────────────────────────────────────────────── */

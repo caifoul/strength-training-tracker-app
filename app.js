@@ -368,10 +368,10 @@ function renderCurrentWorkout() {
     return;
   }
 
-  const last = currentWorkoutExercises.length - 1;
   currentWorkoutList.innerHTML = currentWorkoutExercises
     .map((exercise, index) => `
-      <article class="exercise-item" data-index="${index}">
+      <article class="exercise-item" data-index="${index}" draggable="true">
+        <div class="drag-handle" aria-hidden="true">&#8942;</div>
         <div class="exercise-summary">
           <strong>${exercise.name}</strong>
           <span>Sets: ${exercise.sets}</span>
@@ -379,16 +379,51 @@ function renderCurrentWorkout() {
           <span>Weight: ${exercise.weight} lbs</span>
           ${exercise.notes ? `<p class="exercise-notes">Notes: ${exercise.notes}</p>` : ''}
         </div>
-        <div class="exercise-actions">
-          <div class="exercise-reorder">
-            <button type="button" class="btn-icon exercise-move" data-index="${index}" data-dir="-1" ${index === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
-            <button type="button" class="btn-icon exercise-move" data-index="${index}" data-dir="1" ${index === last ? 'disabled' : ''} aria-label="Move down">↓</button>
-          </div>
-          <button type="button" class="exercise-delete" data-index="${index}">Remove</button>
-        </div>
+        <button type="button" class="exercise-delete" data-index="${index}">Remove</button>
       </article>
     `)
     .join('');
+
+  initDragAndDrop();
+}
+
+function initDragAndDrop() {
+  const items = Array.from(currentWorkoutList.querySelectorAll('.exercise-item[draggable]'));
+  let dragSrcIndex = null;
+
+  items.forEach(item => {
+    item.addEventListener('dragstart', e => {
+      dragSrcIndex = Number(item.dataset.index);
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(() => item.classList.add('dragging'), 0);
+    });
+
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      items.forEach(i => i.classList.remove('drag-over'));
+    });
+
+    item.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      items.forEach(i => i.classList.remove('drag-over'));
+      item.classList.add('drag-over');
+    });
+
+    item.addEventListener('dragleave', () => {
+      item.classList.remove('drag-over');
+    });
+
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      const dropIndex = Number(item.dataset.index);
+      if (dragSrcIndex === null || dragSrcIndex === dropIndex) return;
+      const [moved] = currentWorkoutExercises.splice(dragSrcIndex, 1);
+      currentWorkoutExercises.splice(dropIndex, 0, moved);
+      dragSrcIndex = null;
+      renderCurrentWorkout();
+    });
+  });
 }
 
 function renderWorkoutLog() {
@@ -631,18 +666,7 @@ document.addEventListener('click', async event => {
     await deleteExercise(sessionId, exerciseId);
   }
 
-  if (event.target.matches('.exercise-move')) {
-    const index = Number(event.target.dataset.index);
-    const newIndex = index + Number(event.target.dataset.dir);
-    if (newIndex >= 0 && newIndex < currentWorkoutExercises.length) {
-      [currentWorkoutExercises[index], currentWorkoutExercises[newIndex]] =
-        [currentWorkoutExercises[newIndex], currentWorkoutExercises[index]];
-      renderCurrentWorkout();
-    }
-    return;
-  }
-
-  if (event.target.matches('.exercise-delete') && event.target.dataset.index) {
+if (event.target.matches('.exercise-delete') && event.target.dataset.index) {
     const index = Number(event.target.dataset.index);
     currentWorkoutExercises.splice(index, 1);
     renderCurrentWorkout();
@@ -680,8 +704,20 @@ onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if (user) {
     const firestoreWorkouts = await loadWorkoutsFromFirestore(user.uid);
-    workouts = normalizeWorkouts(firestoreWorkouts);
-    saveWorkouts();
+    if (firestoreWorkouts.length > 0) {
+      workouts = normalizeWorkouts(firestoreWorkouts);
+      saveWorkouts();
+    } else {
+      // Firestore is empty — migrate any existing localStorage data up
+      loadWorkouts();
+      if (workouts.length > 0) {
+        const batch = writeBatch(db);
+        workouts.forEach(session => {
+          batch.set(doc(db, 'users', user.uid, 'workouts', session.id), session);
+        });
+        await batch.commit();
+      }
+    }
   } else {
     loadWorkouts();
   }

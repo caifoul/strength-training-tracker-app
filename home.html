@@ -19,29 +19,13 @@
           <nav class="nav-links">
             <a href="home.html">Dashboard</a>
             <a href="index.html">Log Workout</a>
-            <a href="profile.html">Profile</a>
-            <a href="favorites.html">Favorites</a>
             <a href="coach.html">Coach</a>
+            <a href="sg-workout.html">S.G. Workout</a>
+            <a href="favorites.html">Favorites</a>
+            <a href="profile.html">Profile</a>
           </nav>
         </div>
       </header>
-
-      <section class="log-card" id="app-overview">
-        <div class="overview-steps">
-          <a href="index.html" class="overview-step"><span>💪</span> Log</a>
-          <span class="overview-arrow">→</span>
-          <a href="coach.html" class="overview-step"><span>🤖</span> Coach</a>
-          <span class="overview-arrow">→</span>
-          <a href="favorites.html" class="overview-step"><span>⭐</span> Favorites</a>
-          <span class="overview-arrow">→</span>
-          <a href="profile.html" class="overview-step"><span>👤</span> Profile</a>
-        </div>
-        <div class="overview-stats" id="overview-stats">
-          <span id="stat-sessions">— sessions</span>
-          <span id="stat-exercises">— exercises</span>
-          <span id="stat-last">last workout: —</span>
-        </div>
-      </section>
 
       <section class="log-card">
         <h2>7-Day Lift Progression</h2>
@@ -57,8 +41,40 @@
         </blockquote>
       </section>
 
-      <section class="log-card">
-        <a href="index.html" class="account-link">Go to Workout Tracker</a>
+      <section class="log-card" id="app-overview">
+        <h2>What's in the App</h2>
+        <div class="overview-stats" id="overview-stats">
+          <span id="stat-sessions">— sessions</span>
+          <span id="stat-exercises">— exercises</span>
+          <span id="stat-last">last workout: —</span>
+        </div>
+        <div class="overview-grid">
+          <a href="index.html" class="overview-card">
+            <div class="overview-card-icon">💪</div>
+            <h3>Log Workout</h3>
+            <p>Build a session by adding exercises with sets, reps, and weight. Name the session, mark it as a favorite, and save it to your account. Your history stays synced across every device.</p>
+          </a>
+          <a href="favorites.html" class="overview-card">
+            <div class="overview-card-icon">⭐</div>
+            <h3>Favorites</h3>
+            <p>Any session you star while logging shows up here. Use it to quickly revisit go-to workouts — upper body days, leg sessions, or any routine worth repeating.</p>
+          </a>
+          <a href="coach.html" class="overview-card">
+            <div class="overview-card-icon">🤖</div>
+            <h3>Coach</h3>
+            <p>Automated workout guide. It looks at what you've done recently, picks what you should do today, and walks you through exercises one at a time — with a "machine taken" swap option if equipment isn't free.</p>
+          </a>
+          <a href="sg-workout.html" class="overview-card">
+            <div class="overview-card-icon">📋</div>
+            <h3>S.G. Workout</h3>
+            <p>Flexible guided sessions. Choose any of your favorited workouts, log each exercise in any order, add exercises mid-session, and review what you've done and missed before finishing.</p>
+          </a>
+          <a href="profile.html" class="overview-card">
+            <div class="overview-card-icon">👤</div>
+            <h3>Profile</h3>
+            <p>Set your main goal, training split, experience level, and hypertrophy targets. The coach uses this info to give you personalized recommendations.</p>
+          </a>
+        </div>
       </section>
     </main>
 
