@@ -1927,6 +1927,91 @@ legend {
   box-shadow: none;
 }
 
+/* ── Favorites edit panel ────────────────────────────────────────── */
+.fav-edit-panel {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 0.75rem;
+  animation: fadeIn 0.15s ease;
+}
+
+.fav-edit-exercises {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.fav-edit-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+@media (max-width: 600px) {
+  .fav-edit-row {
+    grid-template-columns: 1fr auto auto;
+    grid-template-rows: auto auto;
+  }
+  .fav-edit-row .fav-edit-name {
+    grid-column: 1 / -1;
+  }
+}
+
+.fav-edit-name {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.fav-edit-row label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.fav-edit-row label input {
+  width: 5rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.fav-delete-ex-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 34, 102, 0.3);
+  color: var(--danger);
+  border-radius: 8px;
+  padding: 0.3rem 0.55rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1;
+  transition: background 0.15s;
+  box-shadow: none;
+  align-self: end;
+}
+
+.fav-delete-ex-btn:hover {
+  background: rgba(255, 34, 102, 0.15);
+  transform: none;
+  box-shadow: none;
+}
+
+.fav-edit-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.fav-edit-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
 /* ── 7-Day Progression list ──────────────────────────────────────── */
 .prog-list {
   list-style: none;

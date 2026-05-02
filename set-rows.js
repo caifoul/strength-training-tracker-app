@@ -1,9 +1,21 @@
+function attachCascade(container, row) {
+  row.addEventListener('input', e => {
+    const rows = Array.from(container.querySelectorAll('.set-row'));
+    const idx  = rows.indexOf(row);
+    if (idx === -1) return;
+    const field = e.target.classList.contains('set-reps') ? 'set-reps' : 'set-weight';
+    const val   = e.target.value;
+    for (let i = idx + 1; i < rows.length; i++) {
+      rows[i].querySelector(`.${field}`).value = val;
+    }
+  });
+}
+
 export function renderSetRows(container, sets, defaultReps, defaultWeight, existing = []) {
   const currentCount = container.querySelectorAll('.set-row').length;
   sets = Math.max(1, sets);
 
   if (sets > currentCount) {
-    // Add rows
     for (let i = currentCount; i < sets; i++) {
       const reps   = existing[i]?.reps   ?? (existing[i - 1]?.reps   ?? defaultReps);
       const weight = existing[i]?.weight ?? (existing[i - 1]?.weight ?? defaultWeight);
@@ -13,10 +25,10 @@ export function renderSetRows(container, sets, defaultReps, defaultWeight, exist
         <span class="set-label">Set ${i + 1}</span>
         <label>Reps<input type="number" class="set-reps" min="1" value="${reps}" /></label>
         <label>Weight (lbs)<input type="number" class="set-weight" min="0" step="2.5" value="${weight}" /></label>`;
+      attachCascade(container, div);
       container.appendChild(div);
     }
   } else {
-    // Remove extra rows
     const rows = container.querySelectorAll('.set-row');
     for (let i = rows.length - 1; i >= sets; i--) rows[i].remove();
   }
