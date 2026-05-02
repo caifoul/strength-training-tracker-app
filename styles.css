@@ -557,14 +557,21 @@ legend {
   cursor: grab;
   color: var(--text-dim);
   font-size: 1.4rem;
-  padding: 0 0.4rem;
+  padding: 0.25rem 0.6rem;
   user-select: none;
   line-height: 1;
   flex-shrink: 0;
+  touch-action: none;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .drag-handle:active {
   cursor: grabbing;
+  color: var(--neon);
 }
 
 .exercise-item[draggable] {
@@ -1310,6 +1317,13 @@ legend {
   font-size: 0.85rem;
 }
 
+.view-skipped-btn {
+  width: 100%;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
 .end-early-wrap {
   margin-top: 2rem;
   text-align: center;
@@ -1383,6 +1397,33 @@ legend {
   transform: none;
 }
 
+/* ── Per-set rows ────────────────────────────────────────────────── */
+.sets-detail-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.set-row {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.set-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  min-width: 3rem;
+}
+
+.set-row input[type="number"] {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+/* ── Summary stats ───────────────────────────────────────────────── */
 .summary-stats p {
   margin: 0;
   color: var(--text);

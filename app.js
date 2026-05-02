@@ -1,4 +1,5 @@
 import { auth, db } from './firebase-config.js';
+import { initSetRows, renderSetRows, readSetDetails, summarizeSets, formatExerciseStats } from './set-rows.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { collection, doc, setDoc, getDocs, deleteDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
@@ -12,6 +13,7 @@ const clearCurrentWorkoutButton = document.getElementById('clear-current-workout
 const exerciseNameInput = document.getElementById('exercise-name');
 const suggestionsList = document.getElementById('exercise-suggestions');
 const sessionFavoriteCheckbox = document.getElementById('workout-favorite');
+const setsDetailEl = document.getElementById('sets-detail-list');
 
 const storageKey = 'strengthTrackerExercises';
 const popularExercises = [
@@ -374,9 +376,7 @@ function renderCurrentWorkout() {
         <div class="drag-handle" aria-hidden="true">&#8942;</div>
         <div class="exercise-summary">
           <strong>${exercise.name}</strong>
-          <span>Sets: ${exercise.sets}</span>
-          <span>Reps: ${exercise.reps}</span>
-          <span>Weight: ${exercise.weight} lbs</span>
+          ${formatExerciseStats(exercise)}
           ${exercise.notes ? `<p class="exercise-notes">Notes: ${exercise.notes}</p>` : ''}
         </div>
         <button type="button" class="exercise-delete" data-index="${index}">Remove</button>
@@ -388,9 +388,11 @@ function renderCurrentWorkout() {
 }
 
 function initDragAndDrop() {
-  const items = Array.from(currentWorkoutList.querySelectorAll('.exercise-item[draggable]'));
+  const container = currentWorkoutList;
+  const items = Array.from(container.querySelectorAll('.exercise-item[draggable]'));
   let dragSrcIndex = null;
 
+  // ── Desktop (mouse) drag ─────────────────────────────────────
   items.forEach(item => {
     item.addEventListener('dragstart', e => {
       dragSrcIndex = Number(item.dataset.index);
@@ -410,9 +412,7 @@ function initDragAndDrop() {
       item.classList.add('drag-over');
     });
 
-    item.addEventListener('dragleave', () => {
-      item.classList.remove('drag-over');
-    });
+    item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
 
     item.addEventListener('drop', e => {
       e.preventDefault();
@@ -423,6 +423,62 @@ function initDragAndDrop() {
       dragSrcIndex = null;
       renderCurrentWorkout();
     });
+  });
+
+  // ── Touch drag ───────────────────────────────────────────────
+  let touchSrcIndex = null;
+  let touchStartY = 0;
+  let touchDragging = false;
+
+  items.forEach(item => {
+    const handle = item.querySelector('.drag-handle') || item;
+    handle.addEventListener('touchstart', e => {
+      touchSrcIndex = Number(item.dataset.index);
+      touchStartY = e.touches[0].clientY;
+      touchDragging = false;
+    }, { passive: true });
+  });
+
+  container.addEventListener('touchmove', e => {
+    if (touchSrcIndex === null) return;
+    const dy = Math.abs(e.touches[0].clientY - touchStartY);
+    if (!touchDragging && dy > 8) {
+      touchDragging = true;
+      container.querySelector(`.exercise-item[data-index="${touchSrcIndex}"]`)?.classList.add('dragging');
+    }
+    if (!touchDragging) return;
+    e.preventDefault();
+
+    const touch = e.touches[0];
+    const srcItem = container.querySelector(`.exercise-item[data-index="${touchSrcIndex}"]`);
+    if (srcItem) srcItem.style.visibility = 'hidden';
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (srcItem) srcItem.style.visibility = '';
+
+    const overItem = target?.closest('.exercise-item[draggable]');
+    items.forEach(i => i.classList.remove('drag-over'));
+    if (overItem && overItem !== srcItem) overItem.classList.add('drag-over');
+  }, { passive: false });
+
+  container.addEventListener('touchend', () => {
+    if (touchSrcIndex === null) return;
+    container.querySelector(`.exercise-item[data-index="${touchSrcIndex}"]`)?.classList.remove('dragging');
+
+    if (touchDragging) {
+      const dropItem = container.querySelector('.exercise-item.drag-over');
+      if (dropItem) {
+        const dropIndex = Number(dropItem.dataset.index);
+        if (touchSrcIndex !== dropIndex) {
+          const [moved] = currentWorkoutExercises.splice(touchSrcIndex, 1);
+          currentWorkoutExercises.splice(dropIndex, 0, moved);
+          renderCurrentWorkout();
+        }
+      }
+      items.forEach(i => i.classList.remove('drag-over'));
+    }
+
+    touchSrcIndex = null;
+    touchDragging = false;
   });
 }
 
@@ -453,9 +509,7 @@ function renderWorkoutLog() {
               <article class="exercise-item">
                 <div class="exercise-summary">
                   <strong>${exercise.name}</strong>
-                  <span>Sets: ${exercise.sets}</span>
-                  <span>Reps: ${exercise.reps}</span>
-                  <span>Weight: ${exercise.weight} lbs</span>
+                  ${formatExerciseStats(exercise)}
                   ${exercise.notes ? `<p class="exercise-notes">Notes: ${exercise.notes}</p>` : ''}
                 </div>
                 <div class="exercise-actions">
@@ -474,18 +528,18 @@ function renderWorkoutLog() {
 function addExerciseToCurrentWorkout() {
   const name = exerciseNameInput.value.trim();
   const sets = Number(document.getElementById('exercise-sets').value);
-  const reps = Number(document.getElementById('exercise-reps').value);
-  const weight = Number(document.getElementById('exercise-weight').value);
   const notes = document.getElementById('exercise-notes').value.trim();
+  const setDetails = readSetDetails(setsDetailEl);
 
-  if (!name || sets < 1 || reps < 1 || weight < 0) {
-    alert('Please fill in all fields with valid values. Name cannot be empty, sets and reps must be at least 1, and weight cannot be negative.');
+  if (!name || sets < 1 || setDetails.some(d => d.reps < 1)) {
+    alert('Please fill in all fields. Name cannot be empty, sets must be at least 1, and each set needs valid reps.');
     return;
   }
 
+  const { reps, weight } = summarizeSets(setDetails);
   const data = {
     id: `exercise-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    name, sets, reps, weight, notes, favorite: false
+    name, sets, reps, weight, setDetails, notes, favorite: false
   };
 
   if (currentWorkoutExercises.length === 0 && !warmupShownThisSession) {
@@ -502,8 +556,7 @@ function commitExercise(data) {
   document.getElementById('exercise-notes').value = '';
   setSuggestionVisibility(false);
   document.getElementById('exercise-sets').value = 3;
-  document.getElementById('exercise-reps').value = 8;
-  document.getElementById('exercise-weight').value = 100;
+  initSetRows(setsDetailEl, 3, 8, 100);
 }
 
 async function saveCurrentWorkout() {
@@ -621,8 +674,7 @@ exerciseNameInput.addEventListener('blur', () => {
   if (name && getAllExercises().some(ex => ex.name === name)) {
     const predicted = getPredictedValues(name);
     document.getElementById('exercise-sets').value = predicted.sets;
-    document.getElementById('exercise-reps').value = predicted.reps;
-    document.getElementById('exercise-weight').value = predicted.weight;
+    initSetRows(setsDetailEl, predicted.sets, predicted.reps, predicted.weight);
   }
 });
 
@@ -638,8 +690,7 @@ suggestionsList.addEventListener('click', event => {
 
   const predicted = getPredictedValues(selectedExercise);
   document.getElementById('exercise-sets').value = predicted.sets;
-  document.getElementById('exercise-reps').value = predicted.reps;
-  document.getElementById('exercise-weight').value = predicted.weight;
+  initSetRows(setsDetailEl, predicted.sets, predicted.reps, predicted.weight);
 });
 
 document.addEventListener('click', async event => {
@@ -669,6 +720,17 @@ if (event.target.matches('.exercise-delete') && event.target.dataset.index) {
     currentWorkoutExercises.splice(index, 1);
     renderCurrentWorkout();
   }
+});
+
+// Initialize set rows on load
+initSetRows(setsDetailEl, 3, 8, 100);
+
+// Re-render rows when sets count changes
+document.getElementById('exercise-sets').addEventListener('input', () => {
+  const sets = Math.max(1, parseInt(document.getElementById('exercise-sets').value) || 1);
+  const existing = readSetDetails(setsDetailEl);
+  const last = existing[existing.length - 1];
+  renderSetRows(setsDetailEl, sets, last?.reps ?? 8, last?.weight ?? 100, existing);
 });
 
 saveWorkoutButton.addEventListener('click', saveCurrentWorkout);

@@ -2,6 +2,8 @@ import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { collection, doc, setDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getMotivationalMessage } from './motivation.js';
+import { showWarmup } from './warmup.js';
+import { initSetRows, renderSetRows, readSetDetails, summarizeSets } from './set-rows.js';
 
 const storageKey = 'strengthTrackerExercises';
 let workouts = [];
@@ -94,28 +96,32 @@ function startFavoriteWorkout(sessionId) {
   const template = workouts.find(w => w.id === sessionId);
   if (!template) return;
 
-  coachState = {
-    currentWorkout: template,
-    currentSession: { workoutName: template.name, startTime: Date.now(), exercises: [] },
-    currentExerciseIndex: 0,
-    loggedExercises: new Set(),
-    missedExercises: new Set(),
-  };
-  showExerciseSelection();
+  showWarmup(() => {
+    coachState = {
+      currentWorkout: template,
+      currentSession: { workoutName: template.name, startTime: Date.now(), exercises: [] },
+      currentExerciseIndex: 0,
+      loggedExercises: new Set(),
+      missedExercises: new Set(),
+    };
+    showExerciseSelection();
+  });
 }
 
 function createNewWorkout(workoutName) {
-  coachState = {
-    currentWorkout: { name: workoutName, exercises: [] },
-    currentSession: { workoutName, startTime: Date.now(), exercises: [] },
-    currentExerciseIndex: 0,
-    loggedExercises: new Set(),
-    missedExercises: new Set(),
-  };
-  showScreen('start-workout-screen');
-  document.getElementById('workout-title').textContent = workoutName;
-  document.getElementById('exercises-list').innerHTML =
-    '<p class="empty-state">New workout created! Add exercises first in the Log Workout section.</p>';
+  showWarmup(() => {
+    coachState = {
+      currentWorkout: { name: workoutName, exercises: [] },
+      currentSession: { workoutName, startTime: Date.now(), exercises: [] },
+      currentExerciseIndex: 0,
+      loggedExercises: new Set(),
+      missedExercises: new Set(),
+    };
+    showScreen('start-workout-screen');
+    document.getElementById('workout-title').textContent = workoutName;
+    document.getElementById('exercises-list').innerHTML =
+      '<p class="empty-state">New workout created! Add exercises first in the Log Workout section.</p>';
+  });
 }
 
 function showExerciseSelection() {
@@ -178,30 +184,29 @@ function logExerciseForIndex(index) {
     : getSmartDefaults(exercise.name);
 
   document.getElementById('exercise-name-display').textContent = exercise.name;
-  document.getElementById('log-sets').value   = vals.sets;
-  document.getElementById('log-reps').value   = vals.reps;
-  document.getElementById('log-weight').value = vals.weight;
-  document.getElementById('log-notes').value  = prev ? (prev.notes || '') : '';
+  document.getElementById('log-sets').value = vals.sets;
+  initSetRows(document.getElementById('log-sets-detail'), vals.sets, vals.reps, vals.weight);
+  document.getElementById('log-notes').value = prev ? (prev.notes || '') : '';
   document.getElementById('exercise-log-form').dataset.exerciseIndex = index;
 
   showScreen('log-exercise-screen');
 }
 
 function submitExerciseLog() {
-  const form   = document.getElementById('exercise-log-form');
-  const index  = parseInt(form.dataset.exerciseIndex);
-  const sets   = parseInt(document.getElementById('log-sets').value);
-  const reps   = parseInt(document.getElementById('log-reps').value);
-  const weight = parseInt(document.getElementById('log-weight').value);
+  const form       = document.getElementById('exercise-log-form');
+  const index      = parseInt(form.dataset.exerciseIndex);
+  const sets       = parseInt(document.getElementById('log-sets').value);
+  const setDetails = readSetDetails(document.getElementById('log-sets-detail'));
 
-  if (!sets || !reps || weight < 0) {
-    alert('Please fill in all fields correctly');
+  if (!sets || setDetails.some(d => d.reps < 1)) {
+    alert('Please fill in all fields correctly.');
     return;
   }
 
+  const { reps, weight } = summarizeSets(setDetails);
   const exercise = coachState.currentWorkout.exercises[index];
   const notes    = document.getElementById('log-notes').value.trim();
-  const entry    = { exerciseIndex: index, name: exercise.name, sets, reps, weight, notes, timestamp: Date.now() };
+  const entry    = { exerciseIndex: index, name: exercise.name, sets, reps, weight, setDetails, notes, timestamp: Date.now() };
 
   const existingIdx = coachState.currentSession.exercises.findIndex(ex => ex.exerciseIndex === index);
   if (existingIdx !== -1) coachState.currentSession.exercises[existingIdx] = entry;
@@ -250,6 +255,8 @@ function showWorkoutComplete() {
   } else {
     missedSection.classList.add('hidden');
   }
+
+  saveSession(); // auto-save on complete
 }
 
 function showAddExercisePanel() {
@@ -296,43 +303,33 @@ function addMidSessionExercise(saveToWorkout) {
   renderExercisesSelection();
 }
 
-async function endWorkout() {
+async function saveSession() {
+  if (coachState.loggedExercises.size === 0) return;
+
+  const sessionId = coachState.currentWorkout?.id || `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const session = {
-    id: `session-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    id: sessionId,
     name: coachState.currentSession.workoutName,
-    favorite: false,
-    timestamp: coachState.currentSession.startTime,
+    favorite: coachState.currentWorkout?.favorite || false,
+    timestamp: Date.now(),
     exercises: coachState.currentSession.exercises.map(ex => ({
       id: `exercise-${ex.timestamp}-${Math.random().toString(36).slice(2)}`,
       name: ex.name, sets: ex.sets, reps: ex.reps, weight: ex.weight,
+      setDetails: ex.setDetails,
       notes: ex.notes || '', favorite: false,
     })),
   };
 
   loadWorkouts();
-  workouts.push(session);
-
-  if (coachState.currentWorkout?.id) {
-    const tIdx = workouts.findIndex(w => w.id === coachState.currentWorkout.id);
-    if (tIdx !== -1) {
-      workouts[tIdx].exercises = workouts[tIdx].exercises.map(tEx => {
-        const completed = coachState.currentSession.exercises.find(l => l.name === tEx.name);
-        return completed ? { ...tEx, sets: completed.sets, reps: completed.reps, weight: completed.weight } : tEx;
-      });
-    }
-  }
-
+  const idx = workouts.findIndex(s => s.id === sessionId);
+  if (idx !== -1) workouts.splice(idx, 1, session);
+  else workouts.push(session);
   saveWorkouts();
   await saveWorkoutToFirestore(session);
+}
 
-  coachState = {
-    currentWorkout: null, currentSession: null, currentExerciseIndex: 0,
-    loggedExercises: new Set(), missedExercises: new Set(),
-  };
-
-  renderFavoriteWorkouts();
-  showScreen('select-workout-screen');
-  alert('Workout saved!');
+async function endWorkout() {
+  await saveSession();
   location.reload();
 }
 
@@ -356,7 +353,8 @@ async function endEarly() {
     showScreen('select-workout-screen');
     return;
   }
-  await endWorkout();
+  await saveSession();
+  location.reload();
 }
 
 // ── Events ────────────────────────────────────────────────────────
@@ -395,6 +393,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('cancel-add-exercise-btn').addEventListener('click', hideAddExercisePanel);
   document.getElementById('add-session-only-btn').addEventListener('click', () => addMidSessionExercise(false));
   document.getElementById('add-and-save-btn').addEventListener('click', () => addMidSessionExercise(true));
+
+  document.getElementById('log-sets').addEventListener('input', () => {
+    const sets = Math.max(1, parseInt(document.getElementById('log-sets').value) || 1);
+    const existing = readSetDetails(document.getElementById('log-sets-detail'));
+    const last = existing[existing.length - 1];
+    renderSetRows(document.getElementById('log-sets-detail'), sets, last?.reps ?? 8, last?.weight ?? 100, existing);
+  });
 
   document.getElementById('exercise-log-form').addEventListener('submit', e => { e.preventDefault(); submitExerciseLog(); });
   document.getElementById('skip-exercise').addEventListener('click', skipExercise);

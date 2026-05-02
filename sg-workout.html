@@ -116,9 +116,8 @@
           <form id="exercise-log-form">
             <div class="row">
               <label>Sets <input type="number" id="log-sets" min="1" required /></label>
-              <label>Reps <input type="number" id="log-reps" min="1" required /></label>
-              <label>Weight (lbs) <input type="number" id="log-weight" min="0" required /></label>
             </div>
+            <div id="log-sets-detail" class="sets-detail-list"></div>
             <p class="rep-hint">Only count reps completed through your full range of motion.</p>
             <label>Notes <textarea id="log-notes" rows="3"></textarea></label>
             <div class="button-group">
@@ -147,11 +146,36 @@
           </div>
 
           <div class="button-group">
-            <button type="button" id="end-workout-button" class="btn-primary">End Workout</button>
+            <button type="button" id="end-workout-button" class="btn-primary">Done</button>
           </div>
         </div>
       </section>
     </main>
+
+    <!-- Warmup Modal -->
+    <div id="warmup-modal" class="modal hidden">
+      <div class="modal-content warmup-modal-content">
+        <div class="modal-header">
+          <h2>Warmup</h2>
+          <button type="button" id="warmup-skip-x" class="close-btn">&times;</button>
+        </div>
+        <p class="warmup-subtitle">Pick a warmup before you start, or skip.</p>
+        <div id="warmup-select-view">
+          <div id="warmup-preferred-section" class="hidden">
+            <p class="warmup-section-label">Your Preferred Warmup</p>
+            <div id="warmup-preferred-card" class="warmup-card warmup-card-preferred"></div>
+          </div>
+          <p class="warmup-section-label">Quick Options</p>
+          <div class="warmup-grid" id="warmup-presets-grid"></div>
+          <button type="button" id="warmup-skip" class="secondary-button warmup-skip-btn">Skip Warmup</button>
+        </div>
+        <div id="warmup-active-view" class="hidden">
+          <p class="warmup-active-name" id="warmup-active-name"></p>
+          <ol class="warmup-steps-list" id="warmup-steps-list"></ol>
+          <button type="button" id="warmup-done">Done — Start Workout</button>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="sg-workout.js"></script>
     <script src="music-widget.js"></script>

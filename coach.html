@@ -76,9 +76,8 @@
           <div class="coach-log-form">
             <div class="row">
               <label>Sets<input type="number" id="active-sets" min="1" /></label>
-              <label>Reps<input type="number" id="active-reps" min="1" /></label>
-              <label>Weight (lbs)<input type="number" id="active-weight" min="0" step="2.5" /></label>
             </div>
+            <div id="active-sets-detail" class="sets-detail-list"></div>
             <label>Notes<textarea id="active-notes" rows="2" placeholder="Optional…"></textarea></label>
           </div>
 
@@ -96,6 +95,15 @@
               <button id="cancel-machine-taken-btn" class="secondary-button">Back</button>
             </div>
           </div>
+
+          <!-- Skipped exercises panel -->
+          <div id="skipped-panel" class="coach-panel hidden">
+            <p class="coach-panel-title">Exercises You Skipped</p>
+            <div id="skipped-panel-list"></div>
+            <button type="button" id="close-skipped-panel-btn" class="secondary-button">Close</button>
+          </div>
+
+          <button type="button" id="view-skipped-btn" class="secondary-button view-skipped-btn hidden">Skipped (0)</button>
 
           <!-- Quit tease panel -->
           <div id="quit-panel" class="coach-quit-panel hidden">
@@ -130,10 +138,35 @@
             <div id="complete-skipped-list" class="coach-skipped-list"></div>
           </div>
 
-          <button id="save-workout-btn">Finish &amp; Save</button>
+          <button id="save-workout-btn">Done</button>
         </div>
       </section>
     </main>
+
+    <!-- Warmup Modal -->
+    <div id="warmup-modal" class="modal hidden">
+      <div class="modal-content warmup-modal-content">
+        <div class="modal-header">
+          <h2>Warmup</h2>
+          <button type="button" id="warmup-skip-x" class="close-btn">&times;</button>
+        </div>
+        <p class="warmup-subtitle">Pick a warmup before you start, or skip.</p>
+        <div id="warmup-select-view">
+          <div id="warmup-preferred-section" class="hidden">
+            <p class="warmup-section-label">Your Preferred Warmup</p>
+            <div id="warmup-preferred-card" class="warmup-card warmup-card-preferred"></div>
+          </div>
+          <p class="warmup-section-label">Quick Options</p>
+          <div class="warmup-grid" id="warmup-presets-grid"></div>
+          <button type="button" id="warmup-skip" class="secondary-button warmup-skip-btn">Skip Warmup</button>
+        </div>
+        <div id="warmup-active-view" class="hidden">
+          <p class="warmup-active-name" id="warmup-active-name"></p>
+          <ol class="warmup-steps-list" id="warmup-steps-list"></ol>
+          <button type="button" id="warmup-done">Done — Start Workout</button>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="coach.js"></script>
     <script src="music-widget.js"></script>

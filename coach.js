@@ -2,6 +2,8 @@ import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { collection, doc, setDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getMotivationalMessage } from './motivation.js';
+import { showWarmup } from './warmup.js';
+import { initSetRows, renderSetRows, readSetDetails, summarizeSets } from './set-rows.js';
 
 // ── Exercise alternatives ─────────────────────────────────────────
 const ALTERNATIVES = {
@@ -174,13 +176,14 @@ function startWorkout(workoutId) {
     : suggestWorkout();
   if (!workout) return;
 
-  state.currentWorkout = workout;
-  state.exerciseQueue  = workout.exercises.map(e => ({ ...e }));
-  state.currentIndex   = 0;
-  state.logged         = [];
-  state.skipped        = new Set();
-
-  showExercise(0);
+  showWarmup(() => {
+    state.currentWorkout = workout;
+    state.exerciseQueue  = workout.exercises.map(e => ({ ...e }));
+    state.currentIndex   = 0;
+    state.logged         = [];
+    state.skipped        = new Set();
+    showExercise(0);
+  });
 }
 
 // ── Show exercise ─────────────────────────────────────────────────
@@ -217,9 +220,8 @@ function showExercise(index) {
     ? `Last time: ${last.sets}×${last.reps} @ ${last.weight} lbs`
     : 'First time doing this one!';
 
-  qs('active-sets').value   = def.sets;
-  qs('active-reps').value   = def.reps;
-  qs('active-weight').value = def.weight;
+  qs('active-sets').value = def.sets;
+  initSetRows(qs('active-sets-detail'), def.sets, def.reps, def.weight);
   qs('active-notes').value  = '';
 
   qs('machine-taken-panel').classList.add('hidden');
@@ -260,21 +262,21 @@ function showMachineTaken() {
 
 // ── Log exercise ──────────────────────────────────────────────────
 function logCurrentExercise() {
-  const sets   = parseInt(qs('active-sets').value);
-  const reps   = parseInt(qs('active-reps').value);
-  const weight = parseFloat(qs('active-weight').value);
-  const notes  = qs('active-notes').value.trim();
+  const sets       = parseInt(qs('active-sets').value);
+  const setDetails = readSetDetails(qs('active-sets-detail'));
+  const notes      = qs('active-notes').value.trim();
 
-  if (!sets || !reps || isNaN(weight) || weight < 0) {
-    alert('Fill in sets, reps, and weight before continuing.');
+  if (!sets || setDetails.some(d => d.reps < 1)) {
+    alert('Fill in sets and reps before continuing.');
     return;
   }
 
+  const { reps, weight } = summarizeSets(setDetails);
   const ex = state.exerciseQueue[state.currentIndex];
   state.logged.push({
     id: `exercise-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     name: ex.name,
-    sets, reps, weight, notes,
+    sets, reps, weight, setDetails, notes,
     favorite: false,
     _queueIndex: state.currentIndex,
   });
@@ -294,10 +296,52 @@ function logCurrentExercise() {
   }
 }
 
+// ── Skipped button / panel ────────────────────────────────────────
+function updateSkippedBtn() {
+  const btn = qs('view-skipped-btn');
+  if (!btn) return;
+  const count = state.skipped.size;
+  if (count === 0) {
+    btn.classList.add('hidden');
+    qs('skipped-panel').classList.add('hidden');
+  } else {
+    btn.textContent = `Skipped (${count})`;
+    btn.classList.remove('hidden');
+    // Refresh panel list if it's open
+    if (!qs('skipped-panel').classList.contains('hidden')) {
+      renderSkippedPanel();
+    }
+  }
+}
+
+function renderSkippedPanel() {
+  const list = qs('skipped-panel-list');
+  list.innerHTML = Array.from(state.skipped).map(i => `
+    <div class="complete-skipped-item">
+      <span>${state.exerciseQueue[i].name}</span>
+      <button class="secondary-button do-skipped-btn" data-index="${i}">Do it now</button>
+    </div>
+  `).join('');
+}
+
+function toggleSkippedPanel() {
+  const panel = qs('skipped-panel');
+  if (panel.classList.contains('hidden')) {
+    renderSkippedPanel();
+    qs('machine-taken-panel').classList.add('hidden');
+    qs('quit-panel').classList.add('hidden');
+    panel.classList.remove('hidden');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } else {
+    panel.classList.add('hidden');
+  }
+}
+
 // ── Skip / jump / substitute ──────────────────────────────────────
 function skipExercise() {
   state.skipped.add(state.currentIndex);
   qs('machine-taken-panel').classList.add('hidden');
+  updateSkippedBtn();
 
   const next = state.exerciseQueue.findIndex(
     (_, i) => i > state.currentIndex &&
@@ -310,6 +354,7 @@ function skipExercise() {
 function jumpToExercise(targetIndex) {
   state.skipped.add(state.currentIndex);
   qs('machine-taken-panel').classList.add('hidden');
+  updateSkippedBtn();
   showExercise(targetIndex);
 }
 
@@ -340,7 +385,6 @@ function hideQuitPanel() {
 async function endEarly() {
   hideQuitPanel();
   if (state.logged.length === 0) {
-    // Nothing logged — just bail
     state.currentWorkout = null;
     state.exerciseQueue  = [];
     state.logged         = [];
@@ -349,8 +393,8 @@ async function endEarly() {
     renderHome();
     return;
   }
-  // Save whatever was logged
   await saveAndEnd();
+  location.reload();
 }
 
 // ── Complete screen ───────────────────────────────────────────────
@@ -385,43 +429,38 @@ function showComplete() {
     completeMsgEl.style.display = completeMsg ? '' : 'none';
   }
 
+  saveAndEnd(); // auto-save on complete
   showScreen('screen-complete');
 }
 
 // ── Save workout ──────────────────────────────────────────────────
 async function saveAndEnd() {
-  if (!state.logged.length) {
-    alert('Nothing was logged this session.');
-    return;
-  }
+  if (!state.logged.length) return;
 
+  const sessionId = state.currentWorkout.id || `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const session = {
-    id: `session-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    id: sessionId,
     name: state.currentWorkout.name,
-    favorite: false,
+    favorite: state.currentWorkout.favorite || false,
     timestamp: Date.now(),
     exercises: state.logged.map(({ _queueIndex, ...ex }) => ex),
   };
 
-  // localStorage cache
   try {
     const stored = JSON.parse(localStorage.getItem('strengthTrackerExercises') || '[]');
-    stored.push(session);
+    const idx = stored.findIndex(s => s.id === sessionId);
+    if (idx !== -1) stored.splice(idx, 1, session);
+    else stored.push(session);
     localStorage.setItem('strengthTrackerExercises', JSON.stringify(stored));
   } catch (_) {}
 
-  // Firestore
   if (state.currentUser) {
     try {
-      await setDoc(doc(db, 'users', state.currentUser.uid, 'workouts', session.id), session);
+      await setDoc(doc(db, 'users', state.currentUser.uid, 'workouts', sessionId), session);
     } catch (e) {
       console.error('Firestore save failed:', e);
     }
   }
-
-  const saveMsg = getMotivationalMessage('save');
-  alert(saveMsg || 'Workout saved!');
-  location.reload();
 }
 
 // ── Load data ─────────────────────────────────────────────────────
@@ -455,6 +494,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (card) startWorkout(card.dataset.workoutId);
   });
 
+  // Re-render set rows when sets count changes
+  qs('active-sets').addEventListener('input', () => {
+    const sets = Math.max(1, parseInt(qs('active-sets').value) || 1);
+    const existing = readSetDetails(qs('active-sets-detail'));
+    const last = existing[existing.length - 1];
+    renderSetRows(qs('active-sets-detail'), sets, last?.reps ?? 8, last?.weight ?? 100, existing);
+  });
+
   // Active
   qs('active-done-btn').addEventListener('click', logCurrentExercise);
   qs('active-machine-taken-btn').addEventListener('click', showMachineTaken);
@@ -470,8 +517,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.id === 'cancel-machine-taken-btn') qs('machine-taken-panel').classList.add('hidden');
   });
 
+  // Skipped panel
+  qs('view-skipped-btn').addEventListener('click', toggleSkippedPanel);
+  qs('close-skipped-panel-btn').addEventListener('click', () => qs('skipped-panel').classList.add('hidden'));
+  qs('skipped-panel-list').addEventListener('click', e => {
+    if (e.target.matches('.do-skipped-btn')) {
+      const idx = parseInt(e.target.dataset.index);
+      state.skipped.delete(idx);
+      qs('skipped-panel').classList.add('hidden');
+      updateSkippedBtn();
+      showExercise(idx);
+    }
+  });
+
   // Complete
-  qs('save-workout-btn').addEventListener('click', saveAndEnd);
+  qs('save-workout-btn').addEventListener('click', () => location.reload());
   qs('complete-skipped-list').addEventListener('click', e => {
     if (e.target.matches('.do-skipped-btn')) {
       const idx = parseInt(e.target.dataset.index);
