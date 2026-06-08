@@ -6,7 +6,6 @@ import { showWarmup } from './warmup.js';
 import { initSetRows, renderSetRows, readSetDetails, summarizeSets } from './set-rows.js';
 import { startRestTimer, stopRestTimer, restoreRestTimer } from './workout-timer.js';
 import { attachAutocomplete } from './exercise-autocomplete.js';
-import { initMusicWidget } from './music-player.js';
 
 // ── Exercise alternatives ─────────────────────────────────────────
 const ALTERNATIVES = {
@@ -809,7 +808,6 @@ async function loadAllWorkouts() {
 
 // ── Events ────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  initMusicWidget('music-widget-coach');
 
   // Home
   qs('start-suggested-btn').addEventListener('click', () => {

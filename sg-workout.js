@@ -6,7 +6,6 @@ import { showWarmup } from './warmup.js';
 import { initSetRows, renderSetRows, readSetDetails, summarizeSets } from './set-rows.js';
 import { startRestTimer, stopRestTimer, restoreRestTimer } from './workout-timer.js';
 import { attachAutocomplete } from './exercise-autocomplete.js';
-import { initMusicWidget } from './music-player.js';
 
 const storageKey = 'constantiaExercises';
 let workouts = [];
@@ -653,7 +652,6 @@ function discardAndExit() {
 
 // ── Events ────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  initMusicWidget('music-widget-notebook');
 
   const repHint = document.querySelector('.rep-hint');
   if (repHint) {
