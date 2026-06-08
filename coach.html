@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Coach – Constantia</title>
     <link rel="stylesheet" href="styles.css" />
+    <script src="theme.js"></script>
     <style>body { visibility: hidden; }</style>
     <script type="module" src="auth-guard.js"></script>
     <link rel="icon" href="logo.png" />
@@ -17,7 +18,7 @@
         <div class="header-top">
           <div>
             <h1>Coach</h1>
-            <p>Tells you exactly what to lift next.</p>
+            <p>Pick up where you left off. Coach handles the rest.</p>
           </div>
           <nav class="nav-links">
             <a href="home.html">Dashboard</a>
@@ -40,9 +41,10 @@
           <div class="coach-home-actions">
             <button id="start-suggested-btn" class="btn-primary">Let's Go</button>
             <button id="choose-different-btn" class="secondary-button">Choose Different Workout</button>
+            <button id="edit-suggested-btn" class="secondary-button" style="display:none;">Edit Exercises</button>
           </div>
           <div id="coach-no-favorites" class="hidden">
-            <p class="empty-state">No favorite workouts yet. Go to <a href="index.html">Log Workout</a>, save a session, and star it as a favorite — then come back here.</p>
+            <p class="empty-state">No workouts saved yet. Log a session on <a href="index.html">Log Workout</a> and star it — then come back here.</p>
           </div>
         </div>
       </section>
@@ -95,7 +97,7 @@
 
           <!-- Machine taken panel (inline) -->
           <div id="machine-taken-panel" class="coach-panel hidden">
-            <p class="coach-panel-title">Can't do this one right now?</p>
+            <p class="coach-panel-title">Can't do this one?</p>
             <div class="mt-content"></div>
             <div class="mt-footer">
               <button id="skip-exercise-btn" class="secondary-button">Skip for Now</button>

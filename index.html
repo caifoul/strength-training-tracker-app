@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Constantia</title>
     <link rel="stylesheet" href="styles.css" />
+    <script src="theme.js"></script>
     <style>body { visibility: hidden; }</style>
     <script type="module" src="auth-guard.js"></script>
     <link rel="icon" href="logo.png" />
@@ -17,7 +18,7 @@
         <div class="header-top">
           <div>
             <h1>Constantia</h1>
-            <p>Log workouts, track sets, reps, and weights.</p>
+            <p>Build and save your workout sessions.</p>
           </div>
           <nav class="nav-links">
             <a href="home.html">Dashboard</a>
@@ -31,14 +32,14 @@
       </header>
 
       <section class="workout-form-card">
-        <h2>Build Workout</h2>
+        <h2>Add Exercise</h2>
         <form id="exercise-form">
           <label>
-            Workout Name
+            Session Name
             <input
               type="text"
               id="workout-name"
-              placeholder="Upper Body Push"
+              placeholder="e.g. Upper Body Push"
               autocomplete="off"
               required
             />
@@ -63,14 +64,14 @@
             </label>
           </div>
           <div id="sets-detail-list" class="sets-detail-list"></div>
-          <p class="rep-hint">Only count reps completed through your full range of motion.</p>
+          <p class="rep-hint">Only count reps you completed with full, clean range of motion.</p>
           <label>
             Notes
             <textarea id="exercise-notes" rows="3"></textarea>
           </label>
           <label class="favorite-checkbox">
             <input type="checkbox" id="workout-favorite" />
-            Favorite this workout session
+            ⭐ Star this session (makes it available in Coach &amp; Notebook)
           </label>
           <button type="submit">Add Exercise</button>
         </form>
@@ -78,24 +79,24 @@
 
       <section class="current-workout-card">
         <div class="log-header">
-          <h2>Current Workout</h2>
+          <h2>This Session</h2>
           <div class="session-actions">
-            <button type="button" id="save-workout-session">Save Workout Session</button>
-            <button type="button" id="clear-current-workout">Clear Current Workout</button>
+            <button type="button" id="save-workout-session">Save Session</button>
+            <button type="button" id="clear-current-workout">Discard</button>
           </div>
         </div>
         <div id="current-workout-list" class="workout-list">
-          <p class="empty-state">Add exercises to build a workout session.</p>
+          <p class="empty-state">No exercises yet — add one above to get started.</p>
         </div>
       </section>
 
       <section class="log-card">
         <div class="log-header">
-          <h2>Workout Log</h2>
-          <button id="clear-log">Clear Log</button>
+          <h2>Past Sessions</h2>
+          <button id="clear-log">Clear All</button>
         </div>
         <div id="workout-list" class="workout-list">
-          <p class="empty-state">No exercises logged yet.</p>
+          <p class="empty-state">No sessions saved yet — save your first workout above.</p>
         </div>
       </section>
     </main>
@@ -107,7 +108,7 @@
           <h2>Warmup</h2>
           <button type="button" id="warmup-skip-x" class="close-btn">&times;</button>
         </div>
-        <p class="warmup-subtitle">Pick a warmup before your first set, or skip.</p>
+        <p class="warmup-subtitle">Get your body ready before you start. Pick one or skip if you're already warm.</p>
 
         <div id="warmup-select-view">
           <div id="warmup-preferred-section" class="hidden">
@@ -122,7 +123,7 @@
         <div id="warmup-active-view" class="hidden">
           <p class="warmup-active-name" id="warmup-active-name"></p>
           <ol class="warmup-steps-list" id="warmup-steps-list"></ol>
-          <button type="button" id="warmup-done">Done — Start Workout</button>
+          <button type="button" id="warmup-done">Done — Let's Lift</button>
         </div>
       </div>
     </div>

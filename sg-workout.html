@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Notebook – Constantia</title>
     <link rel="stylesheet" href="styles.css" />
+    <script src="theme.js"></script>
     <style>body { visibility: hidden; }</style>
     <script type="module" src="auth-guard.js"></script>
     <link rel="icon" href="logo.png" />
@@ -17,7 +18,7 @@
         <div class="header-top">
           <div>
             <h1>Notebook</h1>
-            <p>Guided workouts with smart defaults.</p>
+            <p>Choose a saved workout and go. Add or skip exercises on the fly.</p>
           </div>
           <nav class="nav-links">
             <a href="home.html">Dashboard</a>
@@ -36,7 +37,7 @@
           <h2>Choose Your Workout</h2>
 
           <div id="favorite-workouts" class="workouts-grid">
-            <p class="empty-state">Loading your workouts...</p>
+            <p class="empty-state">No saved workouts yet. Star a session on Log Workout to see it here, or create one below.</p>
           </div>
 
           <div class="divider">OR</div>
@@ -72,7 +73,7 @@
           <div id="workout-timer-widget"></div>
 
           <div id="exercises-list" class="exercises-coach-list">
-            <p class="empty-state">Loading exercises...</p>
+            <p class="empty-state">No exercises in this workout yet. Add one below.</p>
           </div>
 
           <button type="button" id="add-exercise-btn" class="secondary-button add-exercise-toggle">+ Add Exercise</button>

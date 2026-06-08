@@ -16,6 +16,33 @@ const sessionFavoriteCheckbox = document.getElementById('workout-favorite');
 const setsDetailEl = document.getElementById('sets-detail-list');
 
 const storageKey = 'constantiaExercises';
+const LOG_SESSION_KEY = 'constantiaLogSession';
+
+function persistLogSession() {
+  try {
+    localStorage.setItem(LOG_SESSION_KEY, JSON.stringify({
+      name: workoutNameInput.value,
+      favorite: sessionFavoriteCheckbox.checked,
+      exercises: currentWorkoutExercises,
+    }));
+  } catch (_) {}
+}
+
+function restoreLogSession() {
+  try {
+    const raw = localStorage.getItem(LOG_SESSION_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (!s?.exercises?.length) return;
+    currentWorkoutExercises = s.exercises;
+    workoutNameInput.value = s.name || '';
+    sessionFavoriteCheckbox.checked = !!s.favorite;
+  } catch (_) {}
+}
+
+function clearLogSession() {
+  localStorage.removeItem(LOG_SESSION_KEY);
+}
 const popularExercises = [
   'Bench Press',
   'Incline Bench Press',
@@ -421,6 +448,7 @@ function initDragAndDrop() {
       const [moved] = currentWorkoutExercises.splice(dragSrcIndex, 1);
       currentWorkoutExercises.splice(dropIndex, 0, moved);
       dragSrcIndex = null;
+      persistLogSession();
       renderCurrentWorkout();
     });
   });
@@ -551,6 +579,7 @@ function addExerciseToCurrentWorkout() {
 
 function commitExercise(data) {
   currentWorkoutExercises.push(data);
+  persistLogSession();
   renderCurrentWorkout();
   exerciseNameInput.value = '';
   document.getElementById('exercise-notes').value = '';
@@ -583,12 +612,19 @@ async function saveCurrentWorkout() {
   saveWorkouts();
   try { await saveWorkoutToFirestore(session); } catch (e) { console.error('Firestore save failed:', e); }
 
+  clearLogSession();
+  currentWorkoutExercises = [];
+  warmupShownThisSession = false;
+  workoutNameInput.value = '';
+  sessionFavoriteCheckbox.checked = false;
+  renderCurrentWorkout();
+  renderWorkoutLog();
   alert('Workout saved!');
-  location.reload();
 }
 
 function clearCurrentWorkout() {
   currentWorkoutExercises = [];
+  clearLogSession();
   warmupShownThisSession = false;
   renderCurrentWorkout();
 }
@@ -718,6 +754,7 @@ document.addEventListener('click', async event => {
 if (event.target.matches('.exercise-delete') && event.target.dataset.index) {
     const index = Number(event.target.dataset.index);
     currentWorkoutExercises.splice(index, 1);
+    persistLogSession();
     renderCurrentWorkout();
   }
 });
@@ -781,7 +818,20 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     loadWorkouts();
   }
+  restoreLogSession();
   renderCurrentWorkout();
   renderWorkoutLog();
   updateRepHint();
+  // Show warmup at the start of a fresh session (no exercises in progress)
+  if (currentWorkoutExercises.length === 0 && !warmupShownThisSession) {
+    showWarmupModal(null);
+    warmupShownThisSession = true;
+  }
+});
+
+window.addEventListener('beforeunload', e => {
+  if (currentWorkoutExercises.length > 0) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
 });

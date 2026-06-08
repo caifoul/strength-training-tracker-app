@@ -17,6 +17,7 @@ const editHypertrophyBtn = document.getElementById('edit-hypertrophy-btn');
 const editMotivationBtn = document.getElementById('edit-motivation-btn');
 const editTimerBtn = document.getElementById('edit-timer-btn');
 const editWarmupBtn = document.getElementById('edit-warmup-btn');
+const editAppearanceBtn = document.getElementById('edit-appearance-btn');
 const closeModalBtn = document.getElementById('close-modal');
 const cancelEditBtn = document.getElementById('cancel-edit');
 const signOutBtn = document.getElementById('sign-out-btn');
@@ -105,6 +106,13 @@ function renderProfile() {
       </ol>`;
   } else {
     warmupInfo.innerHTML = '<p class="empty-state">No preferred warmup set. Add one to have it available before your workouts.</p>';
+  }
+
+  const appearanceInfo = document.getElementById('appearance-info');
+  if (appearanceInfo) {
+    const themeNames = { dark: 'Dark', light: 'Light', auto: 'Auto (follow system)' };
+    const t = localStorage.getItem('constantiaTheme') || 'dark';
+    appearanceInfo.innerHTML = `<p><strong>${themeNames[t] || 'Dark'}</strong></p>`;
   }
 
   if (profile.mainGoal === 'hypertrophy' && profile.hypertrophy) {
@@ -279,6 +287,21 @@ function openEditModal(mode) {
     if (!sel.value) sel.value = 'off';
   }
 
+  if (mode === 'appearance') {
+    editModalTitle.textContent = 'Appearance';
+    const currentTheme = localStorage.getItem('constantiaTheme') || 'dark';
+    editFormFields.innerHTML = `
+      <label>Theme
+        <select id="edit-theme-select">
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+          <option value="auto">Auto (follow system)</option>
+        </select>
+      </label>
+      <p class="coach-meta" style="margin-top:0.75rem;">Auto matches your device's system setting. Changes apply instantly.</p>`;
+    document.getElementById('edit-theme-select').value = currentTheme;
+  }
+
   if (mode === 'warmup') {
     editModalTitle.textContent = 'Edit Preferred Warmup';
     const pw = profile.preferredWarmup || {};
@@ -298,6 +321,18 @@ function openEditModal(mode) {
 }
 
 async function saveChanges() {
+  if (currentEditMode === 'appearance') {
+    const sel = document.getElementById('edit-theme-select');
+    if (sel) {
+      const theme = sel.value;
+      localStorage.setItem('constantiaTheme', theme);
+      document.documentElement.dataset.theme = theme;
+    }
+    closeModal();
+    renderProfile();
+    return;
+  }
+
   const profile = JSON.parse(localStorage.getItem('constantiaProfile') || '{}');
 
   if (currentEditMode === 'profile') {
@@ -381,6 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
   editMotivationBtn.addEventListener('click', () => openEditModal('motivation'));
   editTimerBtn.addEventListener('click', () => openEditModal('timer'));
   editWarmupBtn.addEventListener('click', () => openEditModal('warmup'));
+  editAppearanceBtn.addEventListener('click', () => openEditModal('appearance'));
   closeModalBtn.addEventListener('click', closeModal);
   cancelEditBtn.addEventListener('click', closeModal);
 

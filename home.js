@@ -70,32 +70,40 @@ function calculateProgression(sessions) {
     const curR  = (Number(cur.sets) || 1) * (Number(cur.reps) || 0);
     const prevR = prev ? (Number(prev.sets) || 1) * (Number(prev.reps) || 0) : 0;
 
-    let delta = '', cls = 'prog-same';
+    let delta = '', cls = 'prog-same', deltaNum = 0;
     if (!prev) {
       delta = 'new this week';
       cls = 'prog-new';
     } else if (curW > prevW) {
-      delta = `+${Math.round((curW - prevW) * 100) / 100} lbs`;
+      deltaNum = curW - prevW;
+      delta = `+${Math.round(deltaNum * 100) / 100} lbs`;
       cls = 'prog-weight';
     } else if (curW < prevW) {
-      delta = `${Math.round((curW - prevW) * 100) / 100} lbs`;
+      deltaNum = curW - prevW;
+      delta = `${Math.round(deltaNum * 100) / 100} lbs`;
       cls = 'prog-down';
     } else if (curR > prevR) {
-      delta = `+${curR - prevR} reps total`;
+      deltaNum = curR - prevR;
+      delta = `+${deltaNum} reps total`;
       cls = 'prog-up';
     } else if (curR < prevR) {
-      delta = `${curR - prevR} reps total`;
+      deltaNum = curR - prevR;
+      delta = `${deltaNum} reps total`;
       cls = 'prog-down';
     } else {
       delta = 'no change';
       cls = 'prog-same';
     }
 
-    return { name, cur, prev, delta, cls };
+    return { name, cur, prev, delta, cls, deltaNum };
   });
 
-  const order = { 'prog-weight': 0, 'prog-up': 1, 'prog-new': 2, 'prog-same': 3, 'prog-down': 4 };
-  rows.sort((a, b) => (order[a.cls] ?? 5) - (order[b.cls] ?? 5));
+  // Worst → best: down first, weight last; within each class, bigger regression first
+  const clsOrder = { 'prog-down': 0, 'prog-same': 1, 'prog-new': 2, 'prog-up': 3, 'prog-weight': 4 };
+  rows.sort((a, b) => {
+    const co = (clsOrder[a.cls] ?? 5) - (clsOrder[b.cls] ?? 5);
+    return co !== 0 ? co : (a.deltaNum ?? 0) - (b.deltaNum ?? 0);
+  });
 
   progressionList.innerHTML = `<ul class="prog-list">${
     rows.map(({ name, cur, prev, delta, cls }) => `

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Favorites – Constantia</title>
     <link rel="stylesheet" href="styles.css" />
+    <script src="theme.js"></script>
     <style>body { visibility: hidden; }</style>
     <script type="module" src="auth-guard.js"></script>
     <link rel="icon" href="logo.png" />
@@ -16,8 +17,8 @@
       <header class="app-header">
         <div class="header-top">
           <div>
-            <h1>My Workouts</h1>
-            <p>All your saved sessions. Star one to make it available in Coach.</p>
+            <h1>Favorites</h1>
+            <p>Your starred workouts. Use them in Coach or Notebook.</p>
           </div>
           <nav class="nav-links">
             <a href="home.html">Dashboard</a>
@@ -33,10 +34,10 @@
       <section class="log-card">
         <div class="log-header">
           <h2>Saved Workouts</h2>
-          <button id="clear-favorites" class="secondary-button">Unstar All</button>
+          <button id="clear-favorites" class="secondary-button">Remove All</button>
         </div>
         <div id="favorites-list" class="workout-list">
-          <p class="empty-state">No workouts saved yet.</p>
+          <p class="empty-state">No saved workouts yet. Log a session on the Log Workout page and star it to save it here.</p>
         </div>
       </section>
     </main>

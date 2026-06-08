@@ -136,17 +136,106 @@ function renderFavoriteWorkouts() {
   const favorites = getFavoriteWorkouts();
 
   if (!favorites.length) {
-    container.innerHTML = '<p class="empty-state">No favorite workouts yet. Create one in Log Workout first!</p>';
+    container.innerHTML = '<p class="empty-state">No saved workouts yet. Star a session on Log Workout to see it here, or create one below.</p>';
     return;
   }
 
   container.innerHTML = favorites.map(workout => `
-    <div class="workout-card coach-workout-card">
+    <div class="coach-workout-card" data-workout-id="${workout.id}">
       <h3>${workout.name}</h3>
       <p>${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'}</p>
-      <button type="button" class="btn-primary start-favorite-workout" data-session-id="${workout.id}">Start</button>
+      <div class="workout-card-actions">
+        <button type="button" class="secondary-button edit-workout-btn" data-workout-id="${workout.id}">Edit</button>
+        <button type="button" class="btn-primary start-favorite-workout" data-session-id="${workout.id}">Start</button>
+      </div>
     </div>
   `).join('');
+}
+
+function openWorkoutEdit(workoutId) {
+  // Close any currently open panels first
+  document.querySelectorAll('.workout-edit-panel').forEach(p => p.remove());
+
+  const card = document.querySelector(`.coach-workout-card[data-workout-id="${workoutId}"]`);
+  if (!card) return;
+  const workout = workouts.find(w => w.id === workoutId);
+  if (!workout) return;
+
+  const panel = document.createElement('div');
+  panel.className = 'workout-edit-panel';
+  panel.dataset.workoutId = workoutId;
+
+  const rowsContainer = document.createElement('div');
+  rowsContainer.className = 'wk-edit-rows';
+  workout.exercises.forEach(ex => appendWorkoutEditRow(rowsContainer, ex));
+  panel.appendChild(rowsContainer);
+
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'secondary-button';
+  addBtn.textContent = '+ Add Exercise';
+  addBtn.addEventListener('click', () => appendWorkoutEditRow(rowsContainer, { name: '', sets: 3, reps: 8, weight: 0 }, true));
+  panel.appendChild(addBtn);
+
+  const actions = document.createElement('div');
+  actions.className = 'wk-edit-actions';
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.className = 'btn-primary';
+  saveBtn.textContent = 'Save';
+  saveBtn.addEventListener('click', () => saveWorkoutEdit(workoutId, panel));
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'secondary-button';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.addEventListener('click', () => panel.remove());
+  actions.appendChild(saveBtn);
+  actions.appendChild(cancelBtn);
+  panel.appendChild(actions);
+
+  card.appendChild(panel);
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function appendWorkoutEditRow(container, ex, focusName = false) {
+  const row = document.createElement('div');
+  row.className = 'wk-edit-row';
+  row.innerHTML = `
+    <input class="wk-edit-name" type="text" value="${ex.name || ''}" placeholder="Exercise name" autocomplete="off" />
+    <div class="wk-edit-nums">
+      <label>Sets<input class="wk-edit-sets" type="number" min="1" value="${ex.sets || 3}" /></label>
+      <label>Reps<input class="wk-edit-reps" type="number" min="1" value="${ex.reps || 8}" /></label>
+      <label>Wt<input class="wk-edit-weight" type="number" min="0" value="${ex.weight ?? 0}" /></label>
+    </div>
+    <button type="button" class="wk-edit-del">×</button>
+  `;
+  row.querySelector('.wk-edit-del').addEventListener('click', () => row.remove());
+  const nameInput = row.querySelector('.wk-edit-name');
+  attachAutocomplete(nameInput, () => {});
+  container.appendChild(row);
+  if (focusName) nameInput.focus();
+}
+
+function saveWorkoutEdit(workoutId, panel) {
+  const exercises = [];
+  panel.querySelectorAll('.wk-edit-row').forEach(row => {
+    const name = row.querySelector('.wk-edit-name').value.trim();
+    if (!name) return;
+    exercises.push({
+      name,
+      sets:   parseInt(row.querySelector('.wk-edit-sets').value)   || 1,
+      reps:   parseInt(row.querySelector('.wk-edit-reps').value)   || 1,
+      weight: parseFloat(row.querySelector('.wk-edit-weight').value) || 0,
+    });
+  });
+
+  const idx = workouts.findIndex(w => w.id === workoutId);
+  if (idx === -1) return;
+  workouts[idx].exercises = exercises;
+  saveWorkouts();
+  if (currentUser) saveWorkoutToFirestore(workouts[idx]);
+
+  renderFavoriteWorkouts();
 }
 
 function startFavoriteWorkout(sessionId) {
@@ -270,6 +359,11 @@ function saveExerciseTargetEdit(index) {
     ...coachState.currentWorkout.exercises[index],
     name, sets, reps, weight,
   };
+
+  // Persist the target edit to the saved workout immediately
+  saveWorkouts();
+  if (currentUser) saveWorkoutToFirestore(coachState.currentWorkout);
+
   renderExercisesSelection();
 }
 
@@ -363,6 +457,15 @@ function submitExerciseLog() {
     coachState.loggedExercises.add(index);
     coachState.missedExercises.delete(index);
     persistNotebookSession();
+
+    if (index < coachState.currentWorkout.exercises.length) {
+      coachState.currentWorkout.exercises[index] = {
+        ...coachState.currentWorkout.exercises[index],
+        sets, reps, weight,
+      };
+      saveWorkouts();
+      if (currentUser) saveWorkoutToFirestore(coachState.currentWorkout);
+    }
 
     const total = coachState.currentWorkout.exercises.length;
     if (coachState.loggedExercises.size === total) showWorkoutComplete();
@@ -564,6 +667,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('favorite-workouts').addEventListener('click', e => {
     if (e.target.matches('.start-favorite-workout'))
       startFavoriteWorkout(e.target.dataset.sessionId);
+    if (e.target.matches('.edit-workout-btn'))
+      openWorkoutEdit(e.target.dataset.workoutId);
   });
 
   document.getElementById('new-workout-form').addEventListener('submit', e => {

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Home – Constantia</title>
     <link rel="stylesheet" href="styles.css" />
+    <script src="theme.js"></script>
     <style>body { visibility: hidden; }</style>
     <script type="module" src="auth-guard.js"></script>
     <link rel="icon" href="logo.png" />
@@ -16,8 +17,8 @@
       <header class="app-header">
         <div class="header-top">
           <div>
-            <h1>Your Fitness Dashboard</h1>
-            <p>Track your progress and stay motivated.</p>
+            <h1>Dashboard</h1>
+            <p>Stay consistent. Get stronger.</p>
           </div>
           <nav class="nav-links">
             <a href="home.html">Dashboard</a>
@@ -38,14 +39,14 @@
       </section>
 
       <section class="log-card">
-        <h2>Inspirational Message</h2>
+        <h2>Quote of the Day</h2>
         <blockquote id="inspirational-message">
           "The only bad workout is the one that didn't happen."
         </blockquote>
       </section>
 
       <section class="log-card" id="app-overview">
-        <h2>What's in the App</h2>
+        <h2>Your Stats</h2>
         <div class="overview-stats" id="overview-stats">
           <span id="stat-sessions">— sessions</span>
           <span id="stat-exercises">— exercises</span>
@@ -55,27 +56,27 @@
           <a href="index.html" class="overview-card">
             <div class="overview-card-icon">💪</div>
             <h3>Log Workout</h3>
-            <p>Build a session by adding exercises with sets, reps, and weight. Name the session, mark it as a favorite, and save it to your account. Your history stays synced across every device.</p>
+            <p>Add exercises, sets, reps, and weight. Star a session to save it as a template you can reuse.</p>
           </a>
           <a href="favorites.html" class="overview-card">
             <div class="overview-card-icon">⭐</div>
             <h3>Favorites</h3>
-            <p>Any session you star while logging shows up here. Use it to quickly revisit go-to workouts — upper body days, leg sessions, or any routine worth repeating.</p>
+            <p>Your starred workouts live here. Tap one to pull it up in Coach or Notebook.</p>
           </a>
           <a href="coach.html" class="overview-card">
             <div class="overview-card-icon">🤖</div>
             <h3>Coach</h3>
-            <p>Automated workout guide. It looks at what you've done recently, picks what you should do today, and walks you through exercises one at a time — with a "machine taken" swap option if equipment isn't free.</p>
+            <p>Picks your workout and guides you through it one exercise at a time. Suggests weights based on your history.</p>
           </a>
           <a href="sg-workout.html" class="overview-card">
             <div class="overview-card-icon">📋</div>
             <h3>Notebook</h3>
-            <p>Flexible guided sessions. Choose any of your favorited workouts, log each exercise in any order, add exercises mid-session, and review what you've done and missed before finishing.</p>
+            <p>Choose a saved workout and log exercises in any order. Add or skip exercises freely during the session.</p>
           </a>
           <a href="profile.html" class="overview-card">
             <div class="overview-card-icon">👤</div>
             <h3>Profile</h3>
-            <p>Set your main goal, training split, experience level, and hypertrophy targets. The coach uses this info to give you personalized recommendations.</p>
+            <p>Set your goals, rep range, and training style. Coach uses this to personalize your suggestions.</p>
           </a>
         </div>
       </section>

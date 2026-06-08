@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Create Account – Constantia</title>
     <link rel="stylesheet" href="styles.css" />
+    <script src="theme.js"></script>
     <link rel="icon" href="logo.png" />
   <link rel="apple-touch-icon" href="logo.png" />
   <link rel="manifest" href="manifest.json" />
@@ -13,12 +14,12 @@
     <main class="app-shell">
       <section class="signup-card">
         <h1>Create Account</h1>
-        <p>Tell us a bit about yourself so we can customize your training experience.</p>
+        <p>A few quick questions so Coach knows how to train you.</p>
 
         <div id="signup-steps">
           <div class="step active" data-step="0">
-            <h2>Welcome</h2>
-            <p>Already have an account? Sign in, or create a new account to continue.</p>
+            <h2>Welcome to Constantia</h2>
+            <p>Sign in or create an account to get started.</p>
             <div class="button-row">
               <button type="button" id="create-account-btn" class="primary-button">Create Account</button>
               <button type="button" id="google-signin" class="google-button">Sign in with Google</button>
@@ -149,7 +150,7 @@
           <div class="step" data-step="10" data-goal="hypertrophy">
             <h2>Recent Muscle Growth Rate</h2>
             <fieldset>
-              <legend>How has your muscle growth been in the past 3 months?</legend>
+              <legend>Past 3 months — how's the muscle growth?</legend>
               <label><input type="radio" name="growth-rate" value="excellent" required /> Excellent - gaining steady muscle</label>
               <label><input type="radio" name="growth-rate" value="good" /> Good - seeing solid progress</label>
               <label><input type="radio" name="growth-rate" value="moderate" /> Moderate - some visible progress</label>

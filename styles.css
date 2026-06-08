@@ -5,8 +5,8 @@
   font-family: 'Permanent Marker', cursive;
   --font-graffiti: 'Rock Salt', cursive;
   --glow-graffiti: 0 0 14px rgba(204, 0, 255, 0.75), 0 0 36px rgba(204, 0, 255, 0.35);
-  background: #07000f;
-  color: #eddeff;
+  background: var(--bg);
+  color: var(--text);
 
   --neon: #cc00ff;
   --neon-dim: rgba(204, 0, 255, 0.55);
@@ -24,6 +24,14 @@
   --text-muted: #5a3575;
   --danger: #ff2266;
   --success: #00ffaa;
+
+  /* theme-adaptive helpers */
+  --text-heading: #ffffff;
+  --glow-h2: 0 0 10px rgba(204, 0, 255, 0.5), 0 0 24px rgba(204, 0, 255, 0.2);
+  --glow-h3: 0 0 8px rgba(204, 0, 255, 0.4);
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --bg-modal: rgba(0, 0, 0, 0.75);
+  --google-btn-bg: #1a1a2e;
 }
 
 /* ── Graffiti type ───────────────────────────────────────────────── */
@@ -49,11 +57,11 @@ h1 {
 }
 
 h2 {
-  text-shadow: 0 0 10px rgba(204, 0, 255, 0.5), 0 0 24px rgba(204, 0, 255, 0.2);
+  text-shadow: var(--glow-h2);
 }
 
 h3 {
-  text-shadow: 0 0 8px rgba(204, 0, 255, 0.4);
+  text-shadow: var(--glow-h3);
 }
 
 .nav-links a {
@@ -126,7 +134,7 @@ body {
 .app-header h1 {
   margin: 0 0 0.5rem;
   font-size: clamp(1.8rem, 3vw, 2.8rem);
-  color: #fff;
+  color: var(--text-heading);
   text-shadow: var(--glow-graffiti);
   letter-spacing: 0.02em;
 }
@@ -164,7 +172,7 @@ body {
 }
 
 .nav-links a:hover {
-  color: #fff;
+  color: var(--text-heading);
   background: rgba(204, 0, 255, 0.2);
   border-color: var(--border-bright);
   text-shadow: var(--neon-glow-sm);
@@ -199,7 +207,7 @@ body {
   margin-top: 1.5rem;
   border-radius: 20px;
   padding: 1.5rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-card);
 }
 
 .workout-form-card h2,
@@ -320,7 +328,7 @@ button:disabled {
 }
 
 .google-button {
-  background: #1a1a2e;
+  background: var(--google-btn-bg);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -449,7 +457,7 @@ legend {
 .suggestion-item:hover,
 .suggestion-item.active {
   background: rgba(204, 0, 255, 0.15);
-  color: #fff;
+  color: var(--text-heading);
 }
 
 /* ── Misc form ───────────────────────────────────────────────────── */
@@ -922,8 +930,7 @@ legend {
   border-radius: 16px;
   padding: 1.5rem;
   text-align: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -931,8 +938,17 @@ legend {
 
 .coach-workout-card:hover {
   border-color: var(--border-bright);
-  box-shadow: var(--neon-glow);
-  background: rgba(204, 0, 255, 0.06);
+  background: rgba(204, 0, 255, 0.04);
+}
+
+.workout-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.workout-card-actions button {
+  flex: 1;
 }
 
 .coach-workout-card h3 {
@@ -1093,7 +1109,7 @@ legend {
 .coach-home-card h2 {
   font-size: clamp(1.6rem, 3vw, 2.4rem);
   margin: 0 0 0.4rem;
-  color: #fff;
+  color: var(--text-heading);
   text-shadow: var(--glow-graffiti);
 }
 
@@ -1137,28 +1153,37 @@ legend {
   border-radius: 14px;
   color: var(--text);
   text-align: left;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease;
   gap: 1rem;
-  font-family: inherit;
-  box-shadow: none;
+  flex-wrap: wrap;
 }
 
 .coach-choose-card:hover {
   border-color: var(--border-bright);
-  background: rgba(204, 0, 255, 0.08);
-  box-shadow: var(--neon-glow-sm);
-  transform: translateY(-1px);
+  background: rgba(204, 0, 255, 0.06);
 }
 
 .coach-choose-card strong {
   font-family: var(--font-graffiti);
   font-weight: 700;
   font-size: 1.05rem;
+  display: block;
 }
 
 .coach-choose-card span {
   color: var(--text-muted);
   font-size: 0.85rem;
+  display: block;
+}
+
+.choose-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.choose-card-actions {
+  display: flex;
+  gap: 0.5rem;
   flex-shrink: 0;
 }
 
@@ -1193,7 +1218,7 @@ legend {
 
 .coach-exercise-name {
   font-size: clamp(1.8rem, 4vw, 2.8rem);
-  color: #fff;
+  color: var(--text-heading);
   margin: 0 0 0.5rem;
   text-shadow: var(--glow-graffiti);
   line-height: 1.1;
@@ -2563,7 +2588,7 @@ legend {
 .overview-card h3 {
   margin: 0 0 0.5rem;
   font-size: 1.1rem;
-  color: #fff;
+  color: var(--text-heading);
 }
 
 .overview-card p {
@@ -2577,7 +2602,7 @@ legend {
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: var(--bg-modal);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   display: flex;
@@ -2781,4 +2806,182 @@ blockquote {
 
   /* Music widget */
   .music-widget { padding: 0.75rem; }
+}
+
+/* ── Workout quick-edit panel ────────────────────────────────────── */
+.workout-edit-panel {
+  border-top: 1px solid var(--border);
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  display: grid;
+  gap: 0.6rem;
+  animation: fadeIn 0.15s ease;
+  text-align: left;
+}
+
+.wk-edit-rows {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.wk-edit-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.4rem;
+}
+
+.wk-edit-name {
+  flex: 1;
+  min-width: 0;
+  padding: 0.38rem 0.6rem;
+  font-size: 0.88rem;
+}
+
+.wk-edit-nums {
+  display: flex;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+
+.wk-edit-nums label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0;
+}
+
+.wk-edit-nums label input {
+  width: 3.6rem;
+  padding: 0.38rem 0.3rem;
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.wk-edit-del {
+  background: transparent;
+  border: 1px solid rgba(255, 34, 102, 0.3);
+  color: var(--danger);
+  border-radius: 8px;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.9rem;
+  line-height: 1;
+  flex-shrink: 0;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.wk-edit-del:hover {
+  background: rgba(255, 34, 102, 0.12);
+  transform: none;
+  box-shadow: none;
+}
+
+.wk-edit-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.wk-edit-actions button {
+  flex: 1;
+  padding: 0.65rem;
+  font-size: 0.82rem;
+}
+
+/* ── Light theme ─────────────────────────────────────────────────── */
+/* Shared light vars — applied by [data-theme="light"] and by the system media query */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --neon: #7700cc;
+  --neon-dim: rgba(119, 0, 204, 0.5);
+  --neon-glow: 0 0 8px rgba(119, 0, 204, 0.2), 0 0 18px rgba(119, 0, 204, 0.08);
+  --neon-glow-sm: 0 0 5px rgba(119, 0, 204, 0.2);
+  --hot: #bb0088;
+  --bg: #f7f0ff;
+  --bg-card: #ffffff;
+  --bg-surface: #f0e8ff;
+  --bg-lift: #e4d8f8;
+  --border: rgba(80, 0, 130, 0.15);
+  --border-bright: rgba(100, 0, 160, 0.38);
+  --text: #180030;
+  --text-dim: #5a1e7a;
+  --text-muted: #9a6ab0;
+  --text-heading: #180030;
+  --danger: #cc0033;
+  --success: #007744;
+  --glow-graffiti: 0 0 6px rgba(119, 0, 204, 0.18), 0 0 14px rgba(119, 0, 204, 0.06);
+  --glow-h2: 0 0 5px rgba(119, 0, 204, 0.14), 0 0 12px rgba(119, 0, 204, 0.06);
+  --glow-h3: 0 0 4px rgba(119, 0, 204, 0.12);
+  --shadow-card: 0 2px 16px rgba(80, 0, 130, 0.1);
+  --bg-modal: rgba(20, 0, 40, 0.55);
+  --google-btn-bg: #ede4ff;
+}
+
+/* Auto mode: follow system when no explicit dark/light override */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]):not([data-theme="light"]) {
+    color-scheme: light;
+    --neon: #7700cc;
+    --neon-dim: rgba(119, 0, 204, 0.5);
+    --neon-glow: 0 0 8px rgba(119, 0, 204, 0.2), 0 0 18px rgba(119, 0, 204, 0.08);
+    --neon-glow-sm: 0 0 5px rgba(119, 0, 204, 0.2);
+    --hot: #bb0088;
+    --bg: #f7f0ff;
+    --bg-card: #ffffff;
+    --bg-surface: #f0e8ff;
+    --bg-lift: #e4d8f8;
+    --border: rgba(80, 0, 130, 0.15);
+    --border-bright: rgba(100, 0, 160, 0.38);
+    --text: #180030;
+    --text-dim: #5a1e7a;
+    --text-muted: #9a6ab0;
+    --text-heading: #180030;
+    --danger: #cc0033;
+    --success: #007744;
+    --glow-graffiti: 0 0 6px rgba(119, 0, 204, 0.18), 0 0 14px rgba(119, 0, 204, 0.06);
+    --glow-h2: 0 0 5px rgba(119, 0, 204, 0.14), 0 0 12px rgba(119, 0, 204, 0.06);
+    --glow-h3: 0 0 4px rgba(119, 0, 204, 0.12);
+    --shadow-card: 0 2px 16px rgba(80, 0, 130, 0.1);
+    --bg-modal: rgba(20, 0, 40, 0.55);
+    --google-btn-bg: #ede4ff;
+  }
+}
+
+/* Light-mode specific non-variable fixes */
+:root[data-theme="light"] .google-button:hover {
+  background: #dfd0ff;
+  border-color: var(--border-bright);
+  box-shadow: var(--neon-glow-sm);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]):not([data-theme="light"]) .google-button:hover {
+    background: #dfd0ff;
+    border-color: var(--border-bright);
+    box-shadow: var(--neon-glow-sm);
+  }
+}
+
+:root[data-theme="light"] .mw-pill {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+:root[data-theme="light"] .mw-card {
+  background: rgba(255, 252, 255, 0.97);
+}
+
+:root[data-theme="light"] .mw-card-title { color: var(--text); }
+:root[data-theme="light"] .mw-card-artist { color: var(--text-dim); }
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]):not([data-theme="light"]) .mw-pill {
+    background: rgba(255, 255, 255, 0.92);
+  }
+  :root:not([data-theme="dark"]):not([data-theme="light"]) .mw-card {
+    background: rgba(255, 252, 255, 0.97);
+  }
+  :root:not([data-theme="dark"]):not([data-theme="light"]) .mw-card-title { color: var(--text); }
+  :root:not([data-theme="dark"]):not([data-theme="light"]) .mw-card-artist { color: var(--text-dim); }
 }

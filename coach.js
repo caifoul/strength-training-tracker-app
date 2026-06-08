@@ -181,6 +181,8 @@ function renderHome() {
     qs('suggested-exercises-preview').textContent = '';
     qs('start-suggested-btn').style.display = 'none';
     qs('choose-different-btn').style.display = 'none';
+    const editSugBtn = qs('edit-suggested-btn');
+    if (editSugBtn) editSugBtn.style.display = 'none';
     qs('coach-no-favorites').classList.remove('hidden');
     showScreen('screen-home');
     return;
@@ -204,6 +206,13 @@ function renderHome() {
   qs('suggested-exercises-preview').textContent   = preview + (extra > 0 ? ` +${extra} more` : '');
   qs('start-suggested-btn').dataset.workoutId     = s.id || '';
 
+  // Wire up Edit Exercises button for the suggested workout
+  const editSuggestedBtn = qs('edit-suggested-btn');
+  if (editSuggestedBtn) {
+    editSuggestedBtn.style.display = '';
+    editSuggestedBtn.dataset.workoutId = s.id || '';
+  }
+
   showScreen('screen-home');
 }
 
@@ -216,10 +225,16 @@ function renderChooseScreen() {
     container.innerHTML = '<p class="empty-state">No favorite workouts. Go to Log Workout, save a session, and star it.</p>';
   } else {
     container.innerHTML = favorites.map(w => `
-      <button class="coach-choose-card" data-workout-id="${w.id}">
-        <strong>${w.name}</strong>
-        <span>${w.exercises.length} exercise${w.exercises.length !== 1 ? 's' : ''}</span>
-      </button>
+      <div class="coach-choose-card" data-workout-id="${w.id}">
+        <div class="choose-card-info">
+          <strong>${w.name}</strong>
+          <span>${w.exercises.length} exercise${w.exercises.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="choose-card-actions">
+          <button class="secondary-button edit-choose-btn" data-workout-id="${w.id}">Edit</button>
+          <button class="btn-primary coach-choose-select" data-workout-id="${w.id}">Select</button>
+        </div>
+      </div>
     `).join('');
   }
 
@@ -415,6 +430,14 @@ function logCurrentExercise() {
     });
     persistCoachSession();
 
+    if (state.currentIndex < state.currentWorkout.exercises.length) {
+      state.currentWorkout.exercises[state.currentIndex] = {
+        ...state.currentWorkout.exercises[state.currentIndex],
+        sets, reps, weight,
+      };
+      saveWorkoutTemplate(state.currentWorkout);
+    }
+
     const next = state.exerciseQueue.findIndex(
       (_, i) => i > state.currentIndex &&
         !state.logged.some(l => l._queueIndex === i) &&
@@ -518,6 +541,12 @@ function skipExercise() {
 
 function jumpToExercise(targetIndex) {
   state.skipped.add(state.currentIndex);
+  // Mark every bypassed exercise as skipped so they remain accessible
+  for (let i = state.currentIndex + 1; i < targetIndex; i++) {
+    if (!state.logged.some(l => l._queueIndex === i)) {
+      state.skipped.add(i);
+    }
+  }
   qs('machine-taken-panel').classList.add('hidden');
   updateSkippedBtn();
   persistCoachSession();
@@ -663,6 +692,105 @@ async function saveAndEnd() {
   }
 }
 
+// ── Workout template editing ──────────────────────────────────────
+async function saveWorkoutTemplate(workout) {
+  try {
+    const stored = JSON.parse(localStorage.getItem('constantiaExercises') || '[]');
+    const idx = stored.findIndex(s => s.id === workout.id);
+    if (idx !== -1) stored.splice(idx, 1, workout);
+    else stored.push(workout);
+    localStorage.setItem('constantiaExercises', JSON.stringify(stored));
+  } catch (_) {}
+
+  const stateIdx = state.allWorkouts.findIndex(w => w.id === workout.id);
+  if (stateIdx !== -1) state.allWorkouts[stateIdx] = workout;
+
+  if (state.currentUser) {
+    try {
+      await setDoc(doc(db, 'users', state.currentUser.uid, 'workouts', workout.id), workout);
+    } catch (e) { console.error('Firestore save failed:', e); }
+  }
+}
+
+function appendCoachEditRow(container, ex, focusName = false) {
+  const row = document.createElement('div');
+  row.className = 'wk-edit-row';
+  row.innerHTML = `
+    <input class="wk-edit-name" type="text" value="${ex.name || ''}" placeholder="Exercise name" autocomplete="off" />
+    <div class="wk-edit-nums">
+      <label>Sets<input class="wk-edit-sets" type="number" min="1" value="${ex.sets || 3}" /></label>
+      <label>Reps<input class="wk-edit-reps" type="number" min="1" value="${ex.reps || 8}" /></label>
+      <label>Wt<input class="wk-edit-weight" type="number" min="0" value="${ex.weight ?? 0}" /></label>
+    </div>
+    <button type="button" class="wk-edit-del">×</button>
+  `;
+  row.querySelector('.wk-edit-del').addEventListener('click', () => row.remove());
+  const nameInput = row.querySelector('.wk-edit-name');
+  attachAutocomplete(nameInput, () => {});
+  container.appendChild(row);
+  if (focusName) nameInput.focus();
+}
+
+function openCoachWorkoutEdit(workoutId, anchorEl) {
+  document.querySelectorAll('.workout-edit-panel').forEach(p => p.remove());
+
+  const workout = state.allWorkouts.find(w => w.id === workoutId);
+  if (!workout || !anchorEl) return;
+
+  const panel = document.createElement('div');
+  panel.className = 'workout-edit-panel';
+  panel.dataset.workoutId = workoutId;
+
+  const rowsContainer = document.createElement('div');
+  rowsContainer.className = 'wk-edit-rows';
+  workout.exercises.forEach(ex => appendCoachEditRow(rowsContainer, ex));
+  panel.appendChild(rowsContainer);
+
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'secondary-button';
+  addBtn.textContent = '+ Add Exercise';
+  addBtn.addEventListener('click', () => appendCoachEditRow(rowsContainer, { name: '', sets: 3, reps: 8, weight: 0 }, true));
+  panel.appendChild(addBtn);
+
+  const actions = document.createElement('div');
+  actions.className = 'wk-edit-actions';
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.className = 'btn-primary';
+  saveBtn.textContent = 'Save';
+  saveBtn.addEventListener('click', async () => {
+    const exercises = [];
+    panel.querySelectorAll('.wk-edit-row').forEach(row => {
+      const name = row.querySelector('.wk-edit-name').value.trim();
+      if (!name) return;
+      exercises.push({
+        name,
+        sets:   parseInt(row.querySelector('.wk-edit-sets').value)   || 1,
+        reps:   parseInt(row.querySelector('.wk-edit-reps').value)   || 1,
+        weight: parseFloat(row.querySelector('.wk-edit-weight').value) || 0,
+      });
+    });
+    workout.exercises = exercises;
+    await saveWorkoutTemplate(workout);
+    panel.remove();
+    // Refresh whichever screen is visible
+    if (!qs('screen-home').classList.contains('hidden')) renderHome();
+    else if (!qs('screen-choose').classList.contains('hidden')) renderChooseScreen();
+  });
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'secondary-button';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.addEventListener('click', () => panel.remove());
+  actions.appendChild(saveBtn);
+  actions.appendChild(cancelBtn);
+  panel.appendChild(actions);
+
+  anchorEl.appendChild(panel);
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
 // ── Load data ─────────────────────────────────────────────────────
 async function loadAllWorkouts() {
   if (!state.currentUser) return;
@@ -688,12 +816,22 @@ document.addEventListener('DOMContentLoaded', () => {
     startWorkout(qs('start-suggested-btn').dataset.workoutId || null);
   });
   qs('choose-different-btn').addEventListener('click', renderChooseScreen);
+  qs('edit-suggested-btn')?.addEventListener('click', () => {
+    const workoutId = qs('edit-suggested-btn').dataset.workoutId;
+    const anchor = qs('edit-suggested-btn').closest('.coach-home-card');
+    openCoachWorkoutEdit(workoutId, anchor);
+  });
 
   // Choose
   qs('back-to-home-btn').addEventListener('click', renderHome);
   qs('choose-workouts-list').addEventListener('click', e => {
-    const card = e.target.closest('.coach-choose-card');
-    if (card) startWorkout(card.dataset.workoutId);
+    const selectBtn = e.target.closest('.coach-choose-select');
+    if (selectBtn) { startWorkout(selectBtn.dataset.workoutId); return; }
+    const editBtn = e.target.closest('.edit-choose-btn');
+    if (editBtn) {
+      const card = editBtn.closest('.coach-choose-card');
+      openCoachWorkoutEdit(editBtn.dataset.workoutId, card);
+    }
   });
 
   // Re-render set rows when sets count changes
