@@ -3,7 +3,7 @@ import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/f
 import { collection, doc, setDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getMotivationalMessage, getMotivationStyle } from './motivation.js';
 import { showWarmup } from './warmup.js';
-import { initSetRows, renderSetRows, readSetDetails, summarizeSets } from './set-rows.js';
+import { summarizeSets } from './set-rows.js';
 import { startRestTimer, stopRestTimer, restoreRestTimer } from './workout-timer.js';
 import { attachAutocomplete } from './exercise-autocomplete.js';
 
@@ -50,6 +50,7 @@ let coachState = {
   currentExerciseIndex: 0,
   loggedExercises: new Set(),
   missedExercises: new Set(),
+  setProgress: { details: [], target: 0 },
 };
 
 const NOTEBOOK_SESSION_KEY = 'notebookActiveSession';
@@ -96,8 +97,9 @@ function getFavoriteWorkouts() {
 }
 
 function getLastExerciseLogForName(name) {
-  for (let i = workouts.length - 1; i >= 0; i--) {
-    for (const ex of (workouts[i].exercises || [])) {
+  const sorted = workouts.slice().sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  for (const w of sorted) {
+    for (const ex of (w.exercises || [])) {
       if (ex.name === name) return ex;
     }
   }
@@ -210,7 +212,12 @@ function appendWorkoutEditRow(container, ex, focusName = false) {
   `;
   row.querySelector('.wk-edit-del').addEventListener('click', () => row.remove());
   const nameInput = row.querySelector('.wk-edit-name');
-  attachAutocomplete(nameInput, () => {});
+  attachAutocomplete(nameInput, name => {
+    const def = getSmartDefaults(name);
+    row.querySelector('.wk-edit-sets').value   = def.sets;
+    row.querySelector('.wk-edit-reps').value   = def.reps;
+    row.querySelector('.wk-edit-weight').value = def.weight;
+  });
   container.appendChild(row);
   if (focusName) nameInput.focus();
 }
@@ -366,6 +373,52 @@ function saveExerciseTargetEdit(index) {
   renderExercisesSelection();
 }
 
+// ── Set-by-set helpers ────────────────────────────────────────────
+function initSgSetBySet(target, firstReps, firstWeight, existingDetails) {
+  coachState.setProgress = {
+    details: existingDetails ? [...existingDetails] : [],
+    target:  Math.max(1, target),
+  };
+  const last = coachState.setProgress.details[coachState.setProgress.details.length - 1];
+  document.getElementById('log-set-reps').value   = last?.reps   ?? firstReps;
+  document.getElementById('log-set-weight').value = last?.weight ?? firstWeight;
+  renderSgSetBySet();
+}
+
+function renderSgSetBySet() {
+  const { details, target } = coachState.setProgress;
+  const next = details.length + 1;
+  const allDone = details.length >= target;
+  document.getElementById('log-set-label').textContent = allDone
+    ? `${details.length} sets logged`
+    : `Set ${next} of ${target}`;
+  document.getElementById('log-logged-sets').innerHTML = details.map((d, i) =>
+    `<div class="logged-set-item">Set ${i + 1}: ${d.reps} reps @ ${d.weight} lbs</div>`
+  ).join('');
+  const logBtn = document.getElementById('log-one-set-btn');
+  logBtn.textContent = allDone ? '+ Add Another Set' : `Log Set ${next}`;
+  logBtn.classList.toggle('btn-primary', !allDone);
+  logBtn.classList.toggle('secondary-button', allDone);
+  const doneBtn = document.getElementById('log-exercise-done-btn');
+  doneBtn.classList.toggle('hidden', details.length === 0);
+  if (allDone && details.length > 0) {
+    doneBtn.classList.add('btn-primary');
+    doneBtn.classList.remove('secondary-button');
+  } else {
+    doneBtn.classList.remove('btn-primary');
+    doneBtn.classList.add('secondary-button');
+  }
+}
+
+function logOneSgSet() {
+  const reps   = parseInt(document.getElementById('log-set-reps').value)    || 1;
+  const weight = parseFloat(document.getElementById('log-set-weight').value) || 0;
+  coachState.setProgress.details.push({ reps, weight });
+  document.getElementById('log-set-reps').value   = reps;
+  document.getElementById('log-set-weight').value = weight;
+  renderSgSetBySet();
+}
+
 function updateProgress() {
   const total   = coachState.currentWorkout.exercises.length;
   const logged  = coachState.loggedExercises.size;
@@ -389,8 +442,7 @@ function logExerciseForIndex(index) {
     : getSmartDefaults(exercise.name);
 
   document.getElementById('exercise-name-display').textContent = exercise.name;
-  document.getElementById('log-sets').value = vals.sets;
-  initSetRows(document.getElementById('log-sets-detail'), vals.sets, vals.reps, vals.weight);
+  initSgSetBySet(vals.sets, vals.reps, vals.weight, prev?.setDetails ?? null);
   document.getElementById('log-notes').value = prev ? (prev.notes || '') : '';
   document.getElementById('exercise-log-form').dataset.exerciseIndex = index;
 
@@ -432,14 +484,14 @@ function showRegressionModal(onSelect) {
 function submitExerciseLog() {
   const form       = document.getElementById('exercise-log-form');
   const index      = parseInt(form.dataset.exerciseIndex);
-  const sets       = parseInt(document.getElementById('log-sets').value);
-  const setDetails = readSetDetails(document.getElementById('log-sets-detail'));
+  const setDetails = coachState.setProgress?.details || [];
 
-  if (!sets || setDetails.some(d => d.reps < 1)) {
-    alert('Please fill in all fields correctly.');
+  if (!setDetails.length) {
+    alert('Log at least one set first.');
     return;
   }
 
+  const sets = setDetails.length;
   const { reps, weight } = summarizeSets(setDetails);
   const exercise = coachState.currentWorkout.exercises[index];
   const notes    = document.getElementById('log-notes').value.trim();
@@ -707,14 +759,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('add-ex-weight').value = def.weight;
   });
 
-  document.getElementById('log-sets').addEventListener('input', () => {
-    const sets = Math.max(1, parseInt(document.getElementById('log-sets').value) || 1);
-    const existing = readSetDetails(document.getElementById('log-sets-detail'));
-    const last = existing[existing.length - 1];
-    renderSetRows(document.getElementById('log-sets-detail'), sets, last?.reps ?? 8, last?.weight ?? 100, existing);
-  });
-
-  document.getElementById('exercise-log-form').addEventListener('submit', e => { e.preventDefault(); submitExerciseLog(); });
+  document.getElementById('log-one-set-btn').addEventListener('click', logOneSgSet);
+  document.getElementById('log-exercise-done-btn').addEventListener('click', submitExerciseLog);
+  document.getElementById('exercise-log-form').addEventListener('submit', e => e.preventDefault());
   document.getElementById('skip-exercise').addEventListener('click', skipExercise);
   document.getElementById('close-log').addEventListener('click', showExerciseSelection);
 

@@ -3,7 +3,7 @@ import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/f
 import { collection, doc, setDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getMotivationalMessage, getMotivationStyle } from './motivation.js';
 import { showWarmup } from './warmup.js';
-import { initSetRows, renderSetRows, readSetDetails, summarizeSets } from './set-rows.js';
+import { summarizeSets } from './set-rows.js';
 import { startRestTimer, stopRestTimer, restoreRestTimer } from './workout-timer.js';
 import { attachAutocomplete } from './exercise-autocomplete.js';
 
@@ -68,6 +68,7 @@ const state = {
   logged:         [],
   skipped:        new Set(),
   currentUser:    null,
+  setProgress:    { details: [], target: 0 },
 };
 
 const COACH_SESSION_KEY = 'coachActiveSession';
@@ -114,8 +115,9 @@ function showScreen(id) {
 
 // ── Data helpers ──────────────────────────────────────────────────
 function getLastLog(exerciseName) {
-  for (let i = state.allWorkouts.length - 1; i >= 0; i--) {
-    for (const ex of (state.allWorkouts[i].exercises || [])) {
+  const sorted = state.allWorkouts.slice().sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  for (const w of sorted) {
+    for (const ex of (w.exercises || [])) {
       if (ex.name === exerciseName) return ex;
     }
   }
@@ -258,6 +260,51 @@ function startWorkout(workoutId) {
   });
 }
 
+// ── Set-by-set helpers ────────────────────────────────────────────
+function initSetBySet(target, firstReps, firstWeight, existingDetails) {
+  state.setProgress = {
+    details: existingDetails ? [...existingDetails] : [],
+    target:  Math.max(1, target),
+  };
+  const last = state.setProgress.details[state.setProgress.details.length - 1];
+  qs('active-set-reps').value   = last?.reps   ?? firstReps;
+  qs('active-set-weight').value = last?.weight ?? firstWeight;
+  renderSetBySet();
+}
+
+function renderSetBySet() {
+  const { details, target } = state.setProgress;
+  const next = details.length + 1;
+  const allDone = details.length >= target;
+  qs('active-set-label').textContent = allDone
+    ? `${details.length} sets logged`
+    : `Set ${next} of ${target}`;
+  qs('active-logged-sets').innerHTML = details.map((d, i) =>
+    `<div class="logged-set-item">Set ${i + 1}: ${d.reps} reps @ ${d.weight} lbs</div>`
+  ).join('');
+  qs('active-log-set-btn').textContent = allDone ? '+ Add Another Set' : `Log Set ${next}`;
+  qs('active-log-set-btn').classList.toggle('btn-primary', !allDone);
+  qs('active-log-set-btn').classList.toggle('secondary-button', allDone);
+  const doneBtn = qs('active-done-btn');
+  doneBtn.classList.toggle('hidden', details.length === 0);
+  if (allDone && details.length > 0) {
+    doneBtn.classList.add('btn-primary');
+    doneBtn.classList.remove('secondary-button');
+  } else {
+    doneBtn.classList.remove('btn-primary');
+    doneBtn.classList.add('secondary-button');
+  }
+}
+
+function logOneSet() {
+  const reps   = parseInt(qs('active-set-reps').value)    || 1;
+  const weight = parseFloat(qs('active-set-weight').value) || 0;
+  state.setProgress.details.push({ reps, weight });
+  qs('active-set-reps').value   = reps;
+  qs('active-set-weight').value = weight;
+  renderSetBySet();
+}
+
 // ── Show exercise ─────────────────────────────────────────────────
 function showExercise(index, prefill = null) {
   // Skip over already-logged indices if we're cycling back
@@ -295,8 +342,7 @@ function showExercise(index, prefill = null) {
   const fillSets   = prefill?.sets   ?? def.sets;
   const fillReps   = prefill?.reps   ?? def.reps;
   const fillWeight = prefill?.weight ?? def.weight;
-  qs('active-sets').value = fillSets;
-  initSetRows(qs('active-sets-detail'), fillSets, fillReps, fillWeight, prefill?.setDetails ?? null);
+  initSetBySet(fillSets, fillReps, fillWeight, prefill?.setDetails ?? null);
   qs('active-notes').value = prefill?.notes ?? '';
 
   qs('machine-taken-panel').classList.add('hidden');
@@ -406,9 +452,10 @@ function isRegression(exerciseName, loggedReps, loggedWeight) {
 // ── Log exercise ──────────────────────────────────────────────────
 function logCurrentExercise() {
   stopRestTimer(); // clear any running rest countdown
-  const sets       = parseInt(qs('active-sets').value);
-  const setDetails = readSetDetails(qs('active-sets-detail'));
-  const notes      = qs('active-notes').value.trim();
+  const setDetails = state.setProgress?.details || [];
+  if (!setDetails.length) { alert('Log at least one set first.'); return; }
+  const sets  = setDetails.length;
+  const notes = qs('active-notes').value.trim();
 
   if (!sets || setDetails.some(d => d.reps < 1)) {
     alert('Fill in sets and reps before continuing.');
@@ -725,7 +772,12 @@ function appendCoachEditRow(container, ex, focusName = false) {
   `;
   row.querySelector('.wk-edit-del').addEventListener('click', () => row.remove());
   const nameInput = row.querySelector('.wk-edit-name');
-  attachAutocomplete(nameInput, () => {});
+  attachAutocomplete(nameInput, name => {
+    const def = getSmartDefault(name);
+    row.querySelector('.wk-edit-sets').value   = def.sets;
+    row.querySelector('.wk-edit-reps').value   = def.reps;
+    row.querySelector('.wk-edit-weight').value = def.weight;
+  });
   container.appendChild(row);
   if (focusName) nameInput.focus();
 }
@@ -832,15 +884,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Re-render set rows when sets count changes
-  qs('active-sets').addEventListener('input', () => {
-    const sets = Math.max(1, parseInt(qs('active-sets').value) || 1);
-    const existing = readSetDetails(qs('active-sets-detail'));
-    const last = existing[existing.length - 1];
-    renderSetRows(qs('active-sets-detail'), sets, last?.reps ?? 8, last?.weight ?? 100, existing);
-  });
-
   // Active
+  qs('active-log-set-btn').addEventListener('click', logOneSet);
   qs('active-done-btn').addEventListener('click', logCurrentExercise);
   qs('active-machine-taken-btn').addEventListener('click', showMachineTaken);
   qs('undo-last-btn').addEventListener('click', undoLastLog);

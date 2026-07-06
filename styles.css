@@ -45,7 +45,6 @@ legend,
 .account-link {
   font-family: var(--font-graffiti);
   font-weight: 700;
-  font-weight: 700;
   letter-spacing: 0.01em;
 }
 
@@ -1454,6 +1453,34 @@ legend {
 .quit-discard-btn:hover {
   background: rgba(255, 140, 0, 0.3);
   transform: none;
+}
+
+/* ── Set-by-set UI ───────────────────────────────────────────────── */
+.set-by-set-ui {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.set-current-label {
+  font-family: var(--font-graffiti);
+  font-size: 1.05rem;
+  color: var(--neon);
+  letter-spacing: 0.03em;
+  margin: 0;
+}
+
+.logged-sets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.logged-set-item {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  padding: 0.2rem 0;
+  border-bottom: 1px solid var(--border);
 }
 
 /* ── Per-set rows ────────────────────────────────────────────────── */

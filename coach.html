@@ -81,15 +81,20 @@
 
           <!-- Log form -->
           <div class="coach-log-form">
-            <div class="row">
-              <label>Sets<input type="number" id="active-sets" min="1" /></label>
+            <div class="set-by-set-ui">
+              <p id="active-set-label" class="set-current-label">Set 1</p>
+              <div id="active-logged-sets" class="logged-sets-list"></div>
+              <div class="row">
+                <label>Reps<input type="number" id="active-set-reps" min="1" /></label>
+                <label>Weight (lbs)<input type="number" id="active-set-weight" min="0" step="2.5" /></label>
+              </div>
             </div>
-            <div id="active-sets-detail" class="sets-detail-list"></div>
             <label>Notes<textarea id="active-notes" rows="2" placeholder="Optional…"></textarea></label>
           </div>
 
           <div class="coach-action-row">
-            <button id="active-done-btn">Done — Next Exercise</button>
+            <button id="active-log-set-btn">Log Set 1</button>
+            <button id="active-done-btn" class="secondary-button hidden">Done — Next Exercise</button>
             <button id="active-machine-taken-btn" class="secondary-button">Machine Taken / Skip</button>
           </div>
 

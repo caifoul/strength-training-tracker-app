@@ -172,7 +172,7 @@ export function getMotivationStyle() {
   }
 }
 
-const _lastShown = new Map();
+const _recentShown = new Map();
 
 export function getMotivationalMessage(context) {
   const style = getMotivationStyle();
@@ -180,9 +180,12 @@ export function getMotivationalMessage(context) {
   if (!bank.length) return null;
   if (bank.length === 1) return bank[0];
   const key = `${style}:${context}`;
-  const last = _lastShown.get(key);
-  let idx;
-  do { idx = Math.floor(Math.random() * bank.length); } while (idx === last);
-  _lastShown.set(key, idx);
+  const avoidCount = Math.max(1, Math.floor(bank.length / 2));
+  const recent = _recentShown.get(key) || [];
+  const available = bank.map((_, i) => i).filter(i => !recent.includes(i));
+  const pool = available.length ? available : bank.map((_, i) => i).filter(i => i !== recent[recent.length - 1]);
+  const idx = pool[Math.floor(Math.random() * pool.length)];
+  const updated = [...recent, idx].slice(-avoidCount);
+  _recentShown.set(key, updated);
   return bank[idx];
 }

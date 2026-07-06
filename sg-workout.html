@@ -122,14 +122,19 @@
           </div>
 
           <form id="exercise-log-form">
-            <div class="row">
-              <label>Sets <input type="number" id="log-sets" min="1" required /></label>
+            <div class="set-by-set-ui">
+              <p id="log-set-label" class="set-current-label">Set 1</p>
+              <div id="log-logged-sets" class="logged-sets-list"></div>
+              <div class="row">
+                <label>Reps<input type="number" id="log-set-reps" min="1" /></label>
+                <label>Weight (lbs)<input type="number" id="log-set-weight" min="0" step="2.5" /></label>
+              </div>
+              <button type="button" id="log-one-set-btn" class="btn-primary">Log Set 1</button>
             </div>
-            <div id="log-sets-detail" class="sets-detail-list"></div>
             <p class="rep-hint">Only count reps completed through your full range of motion.</p>
             <label>Notes <textarea id="log-notes" rows="3"></textarea></label>
             <div class="button-group">
-              <button type="submit" class="btn-primary">Log Exercise</button>
+              <button type="button" id="log-exercise-done-btn" class="btn-primary hidden">Log Exercise</button>
               <button type="button" id="skip-exercise" class="secondary-button">Skip</button>
             </div>
           </form>
